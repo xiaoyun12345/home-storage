@@ -1,0 +1,2019 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#5b7cfa">
+<title>家庭收纳管家</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  :root{
+    --pri:#5b7cfa; --pri-d:#4560d8; --bg:#f4f6fb; --card:#fff;
+    --text:#22262e; --muted:#8a90a0; --line:#e6e9f2;
+    --ok:#22a06b; --warn:#e8a33d; --err:#e05252; --r:14px;
+    --sh:0 2px 10px rgba(28,40,80,.07);
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+    background:var(--bg); color:var(--text); min-height:100vh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ---- 顶栏 ---- */
+  header{
+    position:sticky; top:0; z-index:30; background:var(--pri); color:#fff;
+    padding:12px 14px; display:flex; align-items:center; gap:10px;
+    box-shadow:0 2px 8px rgba(40,60,140,.18);
+  }
+  header button.back{
+    background:rgba(255,255,255,.18); border:0; color:#fff; width:34px; height:34px;
+    border-radius:10px; font-size:18px; line-height:1; cursor:pointer; flex:0 0 auto;
+    display:none; align-items:center; justify-content:center;
+  }
+  header button.back.on{display:flex}
+  header h1{font-size:17px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  header .sub{font-size:12px; opacity:.85; font-weight:400; margin-left:6px}
+  header .tools{display:flex; gap:8px; flex:0 0 auto}
+  header .tools button{
+    background:rgba(255,255,255,.18); border:0; color:#fff; width:34px; height:34px;
+    border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  header svg{width:19px;height:19px;fill:currentColor}
+
+  /* ---- 提示条（放在应用内，不再用登录页那个）---- */
+  #toast{
+    position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 66px); transform:translateX(-50%);
+    z-index:99; display:flex; flex-direction:column; gap:8px; align-items:center;
+    pointer-events:none; width:min(92vw,420px);
+  }
+  .toast-item{
+    padding:10px 16px; border-radius:12px; font-size:14px; color:#fff; max-width:100%;
+    box-shadow:0 6px 20px rgba(20,30,60,.22); animation:tin .22s ease;
+    display:flex; align-items:center; gap:8px; word-break:break-all;
+  }
+  .toast-item.ok{background:var(--ok)} .toast-item.err{background:var(--err)} .toast-item.warn{background:var(--warn)}
+  @keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+  /* ---- 布局 ---- */
+  main{padding:14px 14px 90px; max-width:760px; margin:0 auto}
+  .view{display:none} .view.on{display:block}
+
+  /* ---- 搜索 ---- */
+  .searchbar{position:relative; margin-bottom:14px}
+  .searchbar input{
+    width:100%; padding:11px 14px 11px 40px; border:1px solid var(--line);
+    border-radius:12px; font-size:15px; background:#fff; outline:none;
+  }
+  .searchbar input:focus{border-color:var(--pri)}
+  .searchbar svg{position:absolute; left:13px; top:50%; transform:translateY(-50%); width:17px; height:17px; fill:var(--muted)}
+
+  /* ---- 家具卡片（首页）---- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+  .fcard{
+    background:var(--card); border-radius:var(--r); box-shadow:var(--sh); overflow:hidden;
+    cursor:pointer; border:1px solid var(--line);
+  }
+  .fcard:active{transform:scale(.985)}
+  .fcard .thumb{height:96px; background:#eef1f8; position:relative; overflow:hidden}
+  .fcard .thumb img{width:100%; height:100%; object-fit:cover; display:block}
+  .fcard .thumb .ph{
+    width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+    color:#c3cadb;
+  }
+  .fcard .thumb .ph svg{width:40px;height:40px;fill:currentColor}
+  .fcard .body{padding:10px 12px 12px}
+  .fcard .name{font-size:15px; font-weight:600; margin-bottom:4px}
+  .fcard .meta{font-size:12px; color:var(--muted); display:flex; gap:10px}
+
+  /* ---- 分区行（家具页）---- */
+  .list{display:flex; flex-direction:column; gap:10px}
+  .prow{
+    background:var(--card); border-radius:var(--r); box-shadow:var(--sh); border:1px solid var(--line);
+    display:flex; align-items:center; gap:12px; padding:10px; cursor:pointer;
+  }
+  .prow:active{background:#fafbff}
+  .prow .pic{
+    width:64px; height:64px; border-radius:10px; overflow:hidden; background:#eef1f8;
+    flex:0 0 auto; position:relative;
+  }
+  .prow .pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .prow .pic .empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#c3cadb}
+  .prow .pic .empty svg{width:24px;height:24px;fill:currentColor}
+  .prow .info{flex:1; min-width:0}
+  .prow .info .t{font-size:15px; font-weight:600; margin-bottom:3px}
+  .prow .info .s{font-size:12px; color:var(--muted)}
+  .prow .chev{color:#c8cedd; flex:0 0 auto}
+  .prow .chev svg{width:18px;height:18px;fill:currentColor}
+
+  /* ---- 分区详情 ---- */
+  .section-title{
+    font-size:13px; color:var(--muted); margin:16px 2px 10px; display:flex;
+    align-items:center; justify-content:space-between;
+  }
+  .section-title .right{display:flex; gap:8px}
+  .btn-sm{
+    border:1px solid var(--line); background:#fff; color:var(--pri); border-radius:9px;
+    padding:6px 11px; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
+  }
+  .btn-sm:active{background:#f2f5ff}
+  .btn-sm svg{width:14px;height:14px;fill:currentColor}
+
+  .overview{
+    background:var(--card); border-radius:var(--r); box-shadow:var(--sh); border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .overview img{width:100%; display:block; max-height:60vh; object-fit:contain; background:#f0f2f8}
+  .overview .ph{
+    height:170px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; color:var(--muted); font-size:14px;
+  }
+  .overview .ph svg{width:38px;height:38px;fill:#c3cadb}
+  .overview .acts{display:flex; gap:8px; padding:10px}
+  .overview .acts button{flex:1; border:0; border-radius:10px; padding:10px; font-size:14px; cursor:pointer;
+    background:var(--pri); color:#fff;}
+  .overview .acts button.ghost{background:#eef1f8; color:var(--text)}
+
+  /* ---- 照片墙 ---- */
+  .wall{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px}
+  .pcell{
+    position:relative; border-radius:12px; overflow:hidden; background:#eef1f8;
+    aspect-ratio:1/1; box-shadow:var(--sh); border:1px solid var(--line);
+  }
+  .pcell img{width:100%;height:100%;object-fit:cover;display:block}
+  .pcell .cap{
+    position:absolute; left:0; right:0; bottom:0; padding:16px 8px 6px;
+    background:linear-gradient(transparent,rgba(0,0,0,.62)); color:#fff; font-size:12px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pcell .del{
+    position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%;
+    border:0; background:rgba(0,0,0,.5); color:#fff; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+  }
+  .pcell .del svg{width:13px;height:13px;fill:currentColor}
+
+  .empty{
+    text-align:center; padding:40px 20px; color:var(--muted); font-size:14px;
+  }
+  .empty svg{width:44px;height:44px;fill:#c9d0e0;margin-bottom:10px;display:block;margin-inline:auto}
+
+  /* ---- 浮动按钮 ---- */
+  .fab{
+    position:fixed; right:18px; bottom:calc(env(safe-area-inset-bottom) + 20px);
+    width:56px; height:56px; border-radius:50%; border:0; background:var(--pri); color:#fff;
+    box-shadow:0 8px 22px rgba(70,90,200,.4); cursor:pointer; z-index:40;
+    display:none; align-items:center; justify-content:center;
+  }
+  .fab.on{display:flex}
+  .fab svg{width:26px;height:26px;fill:currentColor}
+
+  /* ---- 弹层 ---- */
+  .sheet-bg{
+    position:fixed; inset:0; background:rgba(15,20,40,.42); z-index:60; display:none;
+    align-items:flex-end; justify-content:center;
+  }
+  .sheet-bg.on{display:flex}
+  .sheet{
+    background:#fff; width:100%; max-width:560px; border-radius:18px 18px 0 0;
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom)); animation:sup .22s ease;
+    max-height:88vh; overflow:auto;
+  }
+  @keyframes sup{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+  .sheet h3{font-size:16px; margin-bottom:14px}
+  .sheet label{display:block; font-size:13px; color:var(--muted); margin:12px 0 6px}
+  .sheet input[type=text],.sheet textarea,.sheet select{
+    width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:11px;
+    font-size:15px; outline:none; font-family:inherit;
+  }
+  .sheet input:focus,.sheet textarea:focus{border-color:var(--pri)}
+  .sheet .row{display:flex; gap:10px; margin-top:18px}
+  .sheet .row button{
+    flex:1; padding:12px; border-radius:12px; border:0; font-size:15px; cursor:pointer;
+  }
+  .sheet .row .cancel{background:#eef1f8; color:var(--text)}
+  .sheet .row .ok{background:var(--pri); color:#fff}
+  .sheet .pick{
+    border:2px dashed #cfd6e6; border-radius:12px; padding:22px; text-align:center;
+    color:var(--muted); font-size:14px; cursor:pointer; margin-top:6px;
+  }
+  .sheet .pick:active{background:#f7f9ff}
+  .sheet .preview{width:100%; border-radius:12px; margin-top:10px; display:none}
+
+  .loading{text-align:center;padding:50px;color:var(--muted);font-size:14px}
+
+  /* ===== 追加：卡片/行上的更多按钮、操作单、命名弹层 ===== */
+  .fcard{position:relative}
+  .card-more{
+    position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;
+    background:rgba(0,0,0,.45);color:#fff;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;z-index:3;
+  }
+  .card-more svg{width:14px;height:14px;fill:currentColor}
+  .prow .more{
+    width:36px;height:36px;border:0;background:transparent;color:#b9c0d2;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:9px;
+  }
+  .prow .more:active{background:#eef1f8}
+  .prow .more svg{width:18px;height:18px;fill:currentColor}
+  .section-title .right{display:flex;gap:8px;align-items:center}
+  #menuBg{position:fixed;inset:0;background:rgba(15,20,40,.42);z-index:70;display:none;
+    align-items:flex-end;justify-content:center}
+  #menuBg.on{display:flex}
+  #menuBox{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;
+    padding:14px 14px calc(14px + env(safe-area-inset-bottom));animation:sup .22s ease}
+  #menuBox .mtitle{font-size:13px;color:var(--muted);text-align:center;margin:6px 0 12px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #menuBox button{display:block;width:100%;padding:15px;border:0;background:#f4f6fb;
+    border-radius:12px;font-size:16px;margin-bottom:8px;cursor:pointer;color:var(--text);font-family:inherit}
+  #menuBox button:active{background:#e9edf8}
+  #menuBox button.danger{color:var(--err)}
+  #menuBox button.cancel{background:transparent;color:var(--muted)}
+
+  /* ===== 追加：大图查看器 ===== */
+  #viewer{
+    position:fixed; inset:0; z-index:80; background:#0b0d13; display:none;
+    flex-direction:column;
+  }
+  #viewer.on{display:flex}
+  #viewer .vtop{
+    display:flex; align-items:center; gap:10px; padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
+    color:#fff; font-size:14px;
+  }
+  #viewer .vtop .vt{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #viewer .vtop button{
+    background:rgba(255,255,255,.14); border:0; color:#fff; width:36px; height:36px;
+    border-radius:10px; font-size:17px; cursor:pointer; flex:0 0 auto;
+  }
+  #viewer .vstage{flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:0 6px}
+  #viewer .vstage img{max-width:100%; max-height:100%; object-fit:contain; display:block}
+  #viewer .vbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 18px calc(env(safe-area-inset-bottom) + 12px);
+  }
+  #viewer .vbar button{
+    background:rgba(255,255,255,.14); border:0; color:#fff; padding:11px 20px;
+    border-radius:11px; font-size:15px; cursor:pointer; font-family:inherit;
+  }
+  #viewer .vbar button.warn{color:#ff9d9d}
+  #viewer .vbar .cnt{color:#9aa2b5; font-size:13px; min-width:64px; text-align:center}
+  #viewer .vbar button:disabled{opacity:.3}
+  .section-title .btn-sm.on{background:var(--pri); color:#fff; border-color:var(--pri)}
+
+  /* ===== 登录界面 ===== */
+  #authScreen{
+    position:fixed; inset:0; z-index:120; display:none; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#5b7cfa,#7f5bfa 60%,#9b5bfa); padding:24px;
+  }
+  #authScreen.on{display:flex}
+  .authCard{
+    background:#fff; border-radius:20px; width:100%; max-width:360px; padding:26px 22px 20px;
+    box-shadow:0 18px 50px rgba(20,20,60,.28); text-align:center;
+  }
+  .authLogo{font-size:38px; line-height:1; margin-bottom:8px}
+  .authCard h2{font-size:19px; margin-bottom:6px}
+  .authSub{font-size:12px; color:var(--muted); margin-bottom:18px; line-height:1.5}
+  .authCard input{
+    width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:11px;
+    font-size:15px; margin-bottom:10px; outline:none; font-family:inherit;
+  }
+  .authCard input:focus{border-color:var(--pri)}
+  .authCard button{
+    width:100%; padding:13px; border:0; border-radius:12px; font-size:16px;
+    background:var(--pri); color:#fff; cursor:pointer; margin-top:4px; font-family:inherit;
+  }
+  .authCard button:disabled{opacity:.6}
+  .authCard button.link{
+    background:transparent; color:var(--pri); font-size:13px; margin-top:10px; padding:6px;
+  }
+  #authMsg{font-size:13px; color:var(--danger, #e05252); min-height:18px; margin-top:8px}
+</style>
+</head>
+<body>
+
+<!-- 图标定义（内嵌 SVG，彻底不依赖网络） -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="M10 2a8 8 0 105.29 14.01l4.35 4.35 1.41-1.41-4.35-4.35A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15.4 7.4L14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M8.6 16.6L13.2 12 8.6 7.4 10 6l6 6-6 6z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M9 3l-1.5 2H4a2 2 0 00-2 2v11a2 2 0 002 2h16a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L15 3H9zm3 5.5a5 5 0 110 10 5 5 0 010-10zm0 2a3 3 0 100 6 3 3 0 000-6z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-4h6l1 2h4v2H4V5h4l1-2z"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 2l9 4.5v11L12 22l-9-4.5v-11L12 2zm0 2.2L5.6 7.4 12 10.6l6.4-3.2L12 4.2zM5 9v7.2l6 3v-7.2L5 9zm14 0l-6 3v7.2l6-3V9z"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3l4 4h-3v6h-2V7H8l4-4zM5 14v5h14v-5h2v7H3v-7h2z"/></symbol>
+  <symbol id="i-ellipsis" viewBox="0 0 24 24"><path d="M6 10h3v4H6zm5 0h3v4h-3zm5 0h3v4h-3z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20 10 10 0 010-20zm1 9h-2v7h2v-7zm0-4h-2v2h2V7z"/></symbol>
+</svg>
+
+<header>
+  <button class="back" id="btnBack" aria-label="返回"><svg><use href="#i-back"/></svg></button>
+  <h1 id="pageTitle">家庭收纳管家<span class="sub" id="pageSub"></span></h1>
+  <div class="tools">
+    <button id="btnInfo" aria-label="说明"><svg><use href="#i-info"/></svg></button>
+  </div>
+</header>
+
+<div id="toast"></div>
+
+<div id="authScreen">
+  <div class="authCard">
+    <div class="authLogo">🏠</div>
+    <h2>家庭收纳管家</h2>
+    <p class="authSub">登录后可在任意设备查看同一份数据</p>
+    <input id="authUser" placeholder="用户名" autocomplete="username" maxlength="20">
+    <input id="authPass" type="password" placeholder="密码（至少 6 位）" autocomplete="current-password">
+    <input id="authCode" placeholder="邀请码（管理员要求时填写）" maxlength="32">
+    <button id="authBtn">登 录</button>
+    <button id="authSwitch" class="link">没有账号？注册一个</button>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+
+<main>
+  <!-- 首页：家具列表 -->
+  <section class="view on" id="viewHome">
+    <div class="searchbar">
+      <svg><use href="#i-search"/></svg>
+      <input type="text" id="searchInput" placeholder="搜索家具或物品名称…" autocomplete="off">
+    </div>
+    <div id="homeStats" class="section-title"><span id="homeStatsTxt">加载中…</span><div class="right"><button class="btn-sm" id="btnAddContainer"><svg><use href="#i-plus"/></svg>新增家具</button></div></div>
+    <div class="grid" id="containerGrid"></div>
+    <div id="searchResults"></div>
+  </section>
+
+  <!-- 家具页：分区列表 -->
+  <section class="view" id="viewContainer">
+    <div class="section-title"><span id="containerSub"></span><div class="right"><button class="btn-sm" id="btnUnshot">只看未拍</button><button class="btn-sm" id="btnAddPart"><svg><use href="#i-plus"/></svg>新增分区</button></div></div>
+    <div class="list" id="partList"></div>
+  </section>
+
+  <!-- 分区页：整体照 + 单品照 -->
+  <section class="view" id="viewPart">
+    <div class="section-title">
+      <span>整体照片</span>
+      <div class="right"><button class="btn-sm" id="btnOverview"><svg><use href="#i-camera"/></svg>拍摄/替换</button></div>
+    </div>
+    <div class="overview" id="overviewBox"></div>
+
+    <div class="section-title">
+      <span>单独物品照片 <b id="itemCount" style="font-weight:400"></b></span>
+      <div class="right"><button class="btn-sm" id="btnAddItem"><svg><use href="#i-plus"/></svg>单独添加</button></div>
+    </div>
+    <div class="wall" id="itemWall"></div>
+    <div id="itemEmpty"></div>
+  </section>
+</main>
+<div id="viewer">
+  <div class="vtop">
+    <span class="vt" id="viewerTitle"></span>
+    <button id="viewerClose" aria-label="关闭">✕</button>
+  </div>
+  <div class="vstage" id="viewerStage"><img id="viewerImg" alt=""></div>
+  <div class="vbar">
+    <button id="viewerPrev">‹ 上一张</button>
+    <span class="cnt" id="viewerCount"></span>
+    <button id="viewerNext">下一张 ›</button>
+  </div>
+  <div class="vbar" style="padding-top:0">
+    <button id="viewerRename">重命名</button>
+    <button id="viewerDelete" class="warn">删除</button>
+  </div>
+</div>
+
+
+<div class="sheet-bg" id="menuBg"><div id="menuBox"></div></div>
+
+<div class="sheet-bg" id="nameBg">
+  <div class="sheet">
+    <h3 id="nameTitle">重命名</h3>
+    <input type="text" id="nameInput" placeholder="请输入名称" maxlength="20">
+    <div class="row">
+      <button class="cancel" id="nameCancel">取消</button>
+      <button class="ok" id="nameOk">确定</button>
+    </div>
+  </div>
+</div>
+
+
+<button class="fab" id="fab" aria-label="添加"><svg><use href="#i-plus"/></svg></button>
+
+<!-- 上传弹层 -->
+<div class="sheet-bg" id="sheetBg">
+  <div class="sheet">
+    <h3 id="sheetTitle">添加照片</h3>
+    <label id="nameLabel">物品名称（可选）</label>
+    <input type="text" id="photoName" placeholder="例如：充电线、螺丝刀套装">
+    <label>选择照片</label>
+    <div class="pick" id="pickBox">
+      <div style="font-size:30px;margin-bottom:6px">📷</div>
+      点击拍照或从相册选择
+    </div>
+    <img class="preview" id="previewImg" alt="">
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div class="row">
+      <button class="cancel" id="btnCancel">取消</button>
+      <button class="ok" id="btnSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =========================================================================
+ * 家庭收纳管家 —— 单文件离线应用
+ * 结构：家具(container) → 分区(part) → 照片(photo: 整体/单品)
+ * 存储：IndexedDB，图片以 Blob 存放（比 base64 省 1/3 空间）
+ * ========================================================================= */
+
+/* 数据存在服务端；本地只保留登录令牌 */
+const TOKEN_KEY = 'hs_token';
+let TOKEN = '';
+
+/* ---------- 初始数据结构（按董友林给的清单） ---------- */
+const SEED = [
+  { name:'鞋柜',            icon:'i-box',  parts:['抽屉1','抽屉2'] },
+  { name:'茶几',            icon:'i-box',  parts:['抽屉1','抽屉2','抽屉3'] },
+  { name:'沙发',            icon:'i-box',  parts:['抽屉1','抽屉2','抽屉3','抽屉4'] },
+  { name:'学习桌1',         icon:'i-box',  parts:['抽屉1','抽屉2','抽屉3'] },
+  { name:'学习桌2',         icon:'i-box',  parts:['抽屉1','抽屉2','抽屉3'] },
+  { name:'电视柜',          icon:'i-box',  parts:['抽屉1','抽屉2','抽屉3'] },
+  { name:'电视柜开门橱柜',  icon:'i-box',  parts:['橱柜1','橱柜2'] },
+  { name:'床1',             icon:'i-box',  parts:['床体箱1','床体箱2','床体箱3','床体箱4'] },
+  { name:'床2',             icon:'i-box',  parts:['床体箱1','床体箱2','床体箱3','床体箱4'] },
+  { name:'床3',             icon:'i-box',  parts:['床体箱1','床体箱2','床体箱3','床体箱4'] },
+  { name:'橱柜1',           icon:'i-box',  parts:['橱柜1','橱柜2','橱柜3','橱柜4'] },
+  { name:'冰箱·冷藏',       icon:'i-box',  parts:['第1层','第2层','第3层','第4层'] },
+  { name:'冰箱·冷冻',       icon:'i-box',  parts:['第1层','第2层','第3层','第4层'] },
+  { name:'工具箱',          icon:'i-box',  parts:['第1层','第2层','第3层'] },
+  { name:'冰柜',            icon:'i-box',  parts:['整体'] },
+  { name:'地下室货架1',     icon:'i-box',  parts:['整体'] },
+  { name:'地下室货架2',     icon:'i-box',  parts:['整体'] }
+];
+
+/* ---------- 状态 ---------- */
+const S = {
+  containers: [], parts: [], photos: [],
+  view: 'home', curContainer: null, curPart: null,
+  urls: [],          // 当前渲染用到的 objectURL，切视图时统一回收
+  pending: null      // { kind:'overview'|'item', file:File }
+};
+
+/* =========================== 工具 =========================== */
+const $ = id => document.getElementById(id);
+
+function toast(msg, type){
+  const box = $('toast');
+  const el = document.createElement('div');
+  el.className = 'toast-item ' + (type || 'ok');
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2200);
+  setTimeout(() => el.remove(), 2600);
+}
+
+function fmtCount(n){ return n > 0 ? n + ' 张' : '未拍'; }
+
+function revokeUrls(){
+  S.urls.forEach(u => { try{ URL.revokeObjectURL(u); }catch(e){} });
+  S.urls = [];
+}
+
+function objUrl(blob){
+  const u = URL.createObjectURL(blob);
+  S.urls.push(u);
+  return u;
+}
+
+/* =========================== 图片压缩 =========================== */
+/* 单张照片压到最长边 1280、JPEG 0.82 —— 手机原图 3~10MB 通常降到 150~400KB */
+function compressImage(file, maxSide, quality){
+  maxSide = maxSide || 1280;
+  quality  = quality  || 0.82;
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error('不是图片文件')); return; }
+
+    const finish = (src, w0, h0) => {
+      const scale = Math.min(1, maxSide / Math.max(w0, h0));
+      const w = Math.max(1, Math.round(w0 * scale));
+      const h = Math.max(1, Math.round(h0 * scale));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(src, 0, 0, w, h);
+      cv.toBlob(b => {
+        if (b) resolve({ blob: b, w: w, h: h });
+        else reject(new Error('图片压缩失败'));
+      }, 'image/jpeg', quality);
+    };
+
+    if (window.createImageBitmap) {
+      createImageBitmap(file).then(bmp => {
+        finish(bmp, bmp.width, bmp.height);
+        if (bmp.close) setTimeout(() => bmp.close(), 0);
+      }).catch(e => reject(e));
+    } else {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { finish(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+      img.src = url;
+    }
+  });
+}
+
+/* =========================== 云端数据层（Supabase） =========================== */
+/* 说明：渲染代码一行没动。这一层把原来的 /api/* 调用映射到 Supabase 的三套 REST：
+     GoTrue   /auth/v1/*      登录、刷新令牌
+     PostgREST/rest/v1/*      家具 / 分区 / 照片记录
+     Storage  /storage/v1/*   照片本体
+   只用 fetch，不引第三方 SDK，页面依旧零外部依赖。 */
+
+const SB_URL = 'https://home-storage-proxy.home-storage.deno.net';
+const SB_KEY = 'sb_publishable_ShPVIqV4EGrj4mJ2ZyiQkg_ome-YHEE';
+const SB_MAIL = '@home.local';      /* 用户名 → 邮箱的固定后缀 */
+const REFRESH_KEY = 'hs_refresh';
+const EXP_KEY = 'hs_exp';
+
+let REFRESH = '';
+let EXP_AT = 0;
+
+function lsGet(k){ try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k){ try { localStorage.removeItem(k); } catch (e) {} }
+
+function sbEmail(u){ u = String(u || '').trim(); return u.indexOf('@') >= 0 ? u : u + SB_MAIL; }
+function sbName(u){ return String(u || '').replace(/@home\.local$/, ''); }
+
+/* 照片公开地址（桶是 public，路径用随机串，猜不到） */
+function photoUrl(path){
+  if (!path) return '';
+  const seg = String(path).split('/').map(function (s) { return encodeURIComponent(s); });
+  return SB_URL + '/storage/v1/object/public/photos/' + seg.join('/');
+}
+
+function sbJson(res){ return res.json().catch(function () { return null; }); }
+
+function sbErr(res, j){
+  const m = (j && (j.message || j.error_description || j.msg || j.error)) || '';
+  if (res.status === 401) return new Error('登录已过期，请重新登录');
+  if (res.status === 403) return new Error('没有权限访问数据（' + (m || '403') + '）');
+  if (res.status === 409) return new Error('数据冲突，请刷新后重试');
+  if (res.status === 413) return new Error('照片太大，换一张或先压缩');
+  return new Error(m || ('请求失败 ' + res.status));
+}
+
+async function sbFetchRaw(path, opt){
+  const headers = Object.assign({
+    apikey: SB_KEY
+  }, (opt && opt.headers) || {});
+  /* 有登录令牌才带 Authorization；新式 sb_publishable_ 密钥不是 JWT，不能当 Bearer 用 */
+  if (TOKEN) headers.Authorization = 'Bearer ' + TOKEN;
+  try {
+    return await fetch(SB_URL + path, Object.assign({}, opt, { headers: headers }));
+  } catch (e) {
+    throw new Error('连不上云端，请检查网络');
+  }
+}
+
+function applySession(j){
+  if (j.access_token) TOKEN = j.access_token;
+  if (j.refresh_token) REFRESH = j.refresh_token;
+  EXP_AT = j.expires_at || (Math.floor(Date.now() / 1000) + (j.expires_in || 3600));
+  lsSet(TOKEN_KEY, TOKEN);
+  lsSet(REFRESH_KEY, REFRESH);
+  lsSet(EXP_KEY, String(EXP_AT));
+}
+
+function clearSession(){
+  TOKEN = ''; REFRESH = ''; EXP_AT = 0;
+  lsDel(TOKEN_KEY); lsDel(REFRESH_KEY); lsDel(EXP_KEY);
+}
+
+async function sbRefresh(){
+  if (!REFRESH) throw new Error('登录已过期，请重新登录');
+  const res = await fetch(SB_URL + '/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: REFRESH })
+  });
+  const j = await sbJson(res);
+  if (!res.ok) { clearSession(); throw new Error('登录已过期，请重新登录'); }
+  applySession(j);
+}
+
+/* 续期必须是单飞的：刷新令牌是一次性的，三个请求同时 401 时只能换一次 */
+let REFRESH_P = null;
+function sbRefreshOnce(){
+  if (!REFRESH_P) {
+    REFRESH_P = sbRefresh().then(
+      function (r) { REFRESH_P = null; return r; },
+      function (e) { REFRESH_P = null; throw e; }
+    );
+  }
+  return REFRESH_P;
+}
+
+/* 快过期就先换新令牌 */
+async function ensureFresh(){
+  const now = Math.floor(Date.now() / 1000);
+  if (REFRESH && (!TOKEN || (EXP_AT && EXP_AT - 90 < now))) {
+    try { await sbRefreshOnce(); } catch (e) {}
+  }
+}
+
+/* 统一请求：过期前自动续期，401 再试一次 */
+async function sbCall(method, path, body, extra){
+  await ensureFresh();
+  const opt = { method: method, headers: Object.assign({}, extra || {}) };
+  if (body !== undefined) {
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(body);
+  }
+  let res = await sbFetchRaw(path, opt);
+  if (res.status === 401 && REFRESH) {
+    try { await sbRefreshOnce(); } catch (e) {}
+    res = await sbFetchRaw(path, opt);
+  }
+  const j = await sbJson(res);
+  if (res.status === 401) {
+    clearSession();
+    try { showAuth('登录已过期，请重新登录'); } catch (e) {}
+    throw new Error('未登录');
+  }
+  if (!res.ok) throw sbErr(res, j);
+  return j;
+}
+
+/* ---------- 登录 / 账号 ---------- */
+async function sbLogin(username, password){
+  const res = await fetch(SB_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: sbEmail(username), password: password })
+  });
+  const j = await sbJson(res);
+  if (!res.ok) {
+    const m = ((j && (j.error_description || j.msg || j.message || j.error)) || '').toLowerCase();
+    if (m.indexOf('invalid login') >= 0 || m.indexOf('invalid_grant') >= 0 ||
+        m.indexOf('invalid credentials') >= 0) {
+      /* 云端账号本质是邮箱，中文用户名会被 GoTrue 拒掉，给一句更准的提示 */
+      if (/[^\x00-\x7f]/.test(String(username || ''))) {
+        throw new Error('云端账号请用拼音或英文用户名（例如 mama、yeye）');
+      }
+      throw new Error('用户名或密码错误');
+    }
+    if (m.indexOf('email not confirmed') >= 0) throw new Error('账号还没确认，请在 Supabase 后台勾选 Auto Confirm');
+    throw new Error((j && (j.error_description || j.msg || j.message)) || '登录失败');
+  }
+  applySession(j);
+  return j;
+}
+
+async function sbMe(){
+  if (REFRESH && (!TOKEN || (EXP_AT && EXP_AT - 90 < Math.floor(Date.now() / 1000)))) {
+    await sbRefresh();
+  }
+  const res = await sbFetchRaw('/auth/v1/user', { method: 'GET' });
+  const j = await sbJson(res);
+  if (res.status === 401 && REFRESH) {
+    await sbRefresh();
+    const r2 = await sbFetchRaw('/auth/v1/user', { method: 'GET' });
+    const j2 = await sbJson(r2);
+    if (!r2.ok) throw new Error('未登录');
+    return j2;
+  }
+  if (!res.ok) throw new Error('未登录');
+  return j;
+}
+
+async function sbLogout(){
+  try {
+    await sbFetchRaw('/auth/v1/logout', { method: 'POST' });
+  } catch (e) {}
+  clearSession();
+}
+
+/* ---------- 状态读取 ---------- */
+const SB_REST = '/rest/v1/';
+const SEL_C = 'select=id,name,icon,sort,created_at&order=sort.asc,id.asc';
+const SEL_P = 'select=id,container_id,name,sort&order=sort.asc,id.asc';
+const SEL_H = 'select=id,part_id,kind,name,mime,w,h,storage_path,created_at&order=created_at.desc';
+
+async function sbState(){
+  const r = await Promise.all([
+    sbCall('GET', SB_REST + 'containers?' + SEL_C),
+    sbCall('GET', SB_REST + 'parts?' + SEL_P),
+    sbCall('GET', SB_REST + 'photos?' + SEL_H)
+  ]);
+  return {
+    containers: (r[0] || []).map(function (x) {
+      return { id: x.id, name: x.name, icon: x.icon || 'i-box', sort: x.sort || 0, created_at: x.created_at };
+    }),
+    parts: (r[1] || []).map(function (x) {
+      return { id: x.id, containerId: x.container_id, name: x.name, sort: x.sort || 0 };
+    }),
+    photos: (r[2] || []).map(function (x) {
+      return {
+        id: x.id, partId: x.part_id, kind: x.kind, name: x.name || '',
+        mime: x.mime, w: x.w, h: x.h, createdAt: Date.parse(x.created_at) || 0,
+        url: photoUrl(x.storage_path)
+      };
+    })
+  };
+}
+
+/* ---------- 照片存储 ---------- */
+function sbRand(){ return Math.random().toString(36).slice(2, 8); }
+
+async function sbPutObject(path, blob, mime){
+  const send = function () {
+    return fetch(SB_URL + '/storage/v1/object/photos/' + path, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: 'Bearer ' + TOKEN,
+        'Content-Type': mime || 'image/jpeg',
+        'x-upsert': 'true'
+      },
+      body: blob
+    });
+  };
+  await ensureFresh();
+  let res = await send();
+  if ((res.status === 401 || res.status === 403) && REFRESH) {
+    /* 上传是裸 fetch，不走 sbCall，令牌过期要自己续一次再试 */
+    try { await sbRefreshOnce(); } catch (e) {}
+    res = await send();
+  }
+  if (!res.ok) {
+    const j = await sbJson(res);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('登录已过期或没有上传权限（HTTP ' + res.status + '）');
+    }
+    throw sbErr(res, j);
+  }
+  return path;
+}
+
+async function sbDeleteObjects(paths){
+  const list = (paths || []).filter(Boolean);
+  if (!list.length) return;
+  try {
+    await sbCall('DELETE', '/storage/v1/object/photos', { prefixes: list });
+  } catch (e) { /* 文件删不掉不算致命 */ }
+}
+
+async function sbUploadPhoto(partId, kind, rec){
+  let blob = rec && rec.blob;
+  if (!blob && rec && rec.dataUrl) blob = dataUrlToBlob(rec.dataUrl);
+  if (!blob) throw new Error('没有拿到图片数据');
+
+  /* 整体照只允许一张：先把旧的连记录带文件清掉 */
+  if (kind === 'overview') {
+    const old = await sbCall('GET', SB_REST + 'photos?select=id,storage_path&part_id=eq.' + partId + '&kind=eq.overview');
+    for (const o of (old || [])) {
+      await sbCall('DELETE', SB_REST + 'photos?id=eq.' + o.id);
+      await sbDeleteObjects([o.storage_path]);
+    }
+  }
+
+  const path = partId + '/' + kind + '-' + Date.now() + '-' + sbRand() + '.jpg';
+  await sbPutObject(path, blob, 'image/jpeg');
+
+  const rows = await sbCall('POST', SB_REST + 'photos', {
+    part_id: partId,
+    kind: kind,
+    name: (rec && rec.name) || '',
+    mime: 'image/jpeg',
+    w: (rec && rec.w) || 0,
+    h: (rec && rec.h) || 0,
+    storage_path: path
+  }, { Prefer: 'return=representation' }).catch(async function (e) {
+    await sbDeleteObjects([path]);
+    throw e;
+  });
+
+  return { id: (rows && rows[0] && rows[0].id) || null };
+}
+
+async function sbDeletePhotosOfParts(partIds){
+  if (!partIds || !partIds.length) return;
+  const list = await sbCall('GET', SB_REST + 'photos?select=id,storage_path&part_id=in.(' + partIds.join(',') + ')');
+  const paths = (list || []).map(function (x) { return x.storage_path; });
+  await sbDeleteObjects(paths);
+}
+
+async function sbDeleteRow(table, id){
+  if (table === 'containers') {
+    const ps = await sbCall('GET', SB_REST + 'parts?select=id&container_id=eq.' + id);
+    await sbDeletePhotosOfParts((ps || []).map(function (x) { return x.id; }));
+    await sbCall('DELETE', SB_REST + 'containers?id=eq.' + id);
+    return id;
+  }
+  if (table === 'parts') {
+    await sbDeletePhotosOfParts([id]);
+    await sbCall('DELETE', SB_REST + 'parts?id=eq.' + id);
+    return id;
+  }
+  const rows = await sbCall('DELETE', SB_REST + 'photos?id=eq.' + id, undefined,
+                           { Prefer: 'return=representation' });
+  await sbDeleteObjects((rows || []).map(function (x) { return x.storage_path; }));
+  return id;
+}
+
+/* ---------- 备份 / 恢复 ---------- */
+async function sbExportAll(){
+  const st = await sbState();
+  const data = {
+    app: 'home-storage', version: 1, exportedAt: new Date().toISOString(),
+    containers: st.containers.map(function (c) { return { id: c.id, name: c.name, order: c.sort }; }),
+    parts: st.parts.map(function (p) { return { id: p.id, containerId: p.containerId, name: p.name, order: p.sort }; }),
+    photos: []
+  };
+  for (const ph of st.photos) {
+    let dataUrl = '';
+    try {
+      const r = await fetch(ph.url);
+      const b = await r.blob();
+      dataUrl = await blobToDataURL(b);
+    } catch (e) {}
+    data.photos.push({
+      id: ph.id, partId: ph.partId, kind: ph.kind, name: ph.name || '',
+      w: ph.w, h: ph.h, createdAt: ph.createdAt, dataUrl: dataUrl
+    });
+  }
+  return data;
+}
+
+async function sbImportAll(body){
+  const containers = body.containers || [];
+  const parts = body.parts || [];
+  const photos = body.photos || [];
+
+  /* 1) 清空旧数据（含存储桶里的文件） */
+  await sbCall('DELETE', SB_REST + 'photos?id=gt.0');
+  await sbCall('DELETE', SB_REST + 'parts?id=gt.0');
+  await sbCall('DELETE', SB_REST + 'containers?id=gt.0');
+  try {
+    const objs = await sbCall('POST', '/storage/v1/object/list/photos', { prefix: '', limit: 1000, offset: 0 });
+    const all = [];
+    for (const o of (objs || [])) {
+      if (o && o.name) all.push(o.name);
+      if (o && o.metadata && o.metadata.is_folder === false && o.name) all.push(o.name);
+    }
+    if (all.length) await sbDeleteObjects(all);
+  } catch (e) {}
+
+  /* 2) 写入结构 */
+  if (containers.length) {
+    await sbCall('POST', SB_REST + 'containers', containers.map(function (c, i) {
+      return { id: c.id, name: c.name, icon: 'i-box', sort: (c.order === undefined ? i : c.order) };
+    }));
+  }
+  if (parts.length) {
+    await sbCall('POST', SB_REST + 'parts', parts.map(function (p, i) {
+      return { id: p.id, container_id: p.containerId, name: p.name, sort: (p.order === undefined ? i : p.order) };
+    }));
+  }
+
+  /* 3) 恢复照片 */
+  let ok = 0, fail = 0;
+  for (const ph of photos) {
+    try {
+      await sbUploadPhoto(ph.partId, ph.kind, { dataUrl: ph.dataUrl, name: ph.name, w: ph.w, h: ph.h });
+      ok++;
+    } catch (e) { fail++; }
+  }
+
+  /* 4) 把自增序列对齐到导入后的最大 id，否则以后新增会撞号（409） */
+  try { await sbCall('POST', '/rest/v1/rpc/hs_fix_sequences', {}); } catch (e) {}
+
+  return { containers: containers.length, parts: parts.length, photos: ok, failed: fail };
+}
+
+/* ---------- 兼容垫片：老的 tx()/reqP()/allOf() 接口保持不变 ---------- */
+function fakeReq(work){
+  const req = { onsuccess: null, onerror: null, result: null };
+  Promise.resolve().then(work).then(function (r) {
+    req.result = r;
+    if (req.onsuccess) req.onsuccess({ target: req });
+  }).catch(function (e) {
+    if (req.onerror) req.onerror({ target: req, error: e });
+    else toast('操作失败：' + (e && e.message ? e.message : e), 'err');
+  });
+  return req;
+}
+
+function tx(store, mode){
+  return {
+    add: function (rec) {
+      return fakeReq(async function () {
+        if (store === 'photos') {
+          const j = await sbUploadPhoto(rec.partId, rec.kind, rec);
+          return j.id;
+        }
+        if (store === 'containers') {
+          const rows = await sbCall('POST', SB_REST + 'containers',
+                                    { name: rec.name, icon: rec.icon || 'i-box', sort: rec.order || 0 },
+                                    { Prefer: 'return=representation' });
+          return rows && rows[0] ? rows[0].id : null;
+        }
+        if (store === 'parts') {
+          const rows = await sbCall('POST', SB_REST + 'parts',
+                                    { container_id: rec.containerId, name: rec.name, sort: rec.order || 0 },
+                                    { Prefer: 'return=representation' });
+          return rows && rows[0] ? rows[0].id : null;
+        }
+        return null;
+      });
+    },
+    put: function (rec) {
+      return fakeReq(async function () {
+        if (store === 'photos') {
+          await sbCall('PATCH', SB_REST + 'photos?id=eq.' + rec.id, { name: rec.name || '' });
+        } else if (store === 'containers') {
+          await sbCall('PATCH', SB_REST + 'containers?id=eq.' + rec.id, { name: rec.name });
+        } else if (store === 'parts') {
+          await sbCall('PATCH', SB_REST + 'parts?id=eq.' + rec.id, { name: rec.name });
+        }
+        return rec.id;
+      });
+    },
+    delete: function (id) {
+      return fakeReq(async function () {
+        const map = { photos: 'photos', containers: 'containers', parts: 'parts' };
+        return await sbDeleteRow(map[store], id);
+      });
+    },
+    clear: function () {
+      return fakeReq(async function () { return true; });
+    }
+  };
+}
+
+function reqP(r){
+  return new Promise(function (res, rej) {
+    r.onsuccess = function () { res(r.result); };
+    r.onerror = function (e) {
+      /* fakeReq 把真实错误放在 e.error；老写法只认 e.target.error，会把原因吃掉 */
+      rej((e && e.error) || (e && e.target && e.target.error) || new Error('操作失败'));
+    };
+  });
+}
+
+async function allOf(store){
+  const j = await sbState();
+  if (store === 'containers') return j.containers;
+  if (store === 'parts') return j.parts;
+  return j.photos;
+}
+
+/* 结构由 SQL 一次性灌好，这里不需要播种 */
+async function seedIfEmpty(){ return false; }
+
+/* 一次性拉取全部状态；照片用云端 URL，不再有 blob */
+let __syncTimer = null, __syncing = false;
+
+async function reloadAll(){
+  const j = await sbState();
+  S.containers = j.containers.map(function (c) {
+    return { id: c.id, name: c.name, icon: c.icon || 'i-box', order: c.sort || 0, createdAt: c.created_at };
+  }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+
+  S.parts = j.parts.map(function (p) {
+    return { id: p.id, containerId: p.containerId, name: p.name, order: p.sort || 0 };
+  });
+
+  S.photos = j.photos.map(function (p) {
+    return {
+      id: p.id, partId: p.partId, kind: p.kind, name: p.name || '',
+      w: p.w, h: p.h, createdAt: p.createdAt,
+      blob: { __url: p.url, size: 0 }
+    };
+  });
+
+  if (!__syncTimer) { try { startAutoSync(); } catch (e) {} }
+}
+
+/* 云端是共享的：切回前台、或每 60 秒自动同步一次，
+   免得一个人在手机上改了、另一个人还盯着过期画面重拍一遍。 */
+function __overlayOn(id){
+  const el = $(id);
+  return !!(el && el.classList && el.classList.contains('on'));
+}
+
+async function syncNow(){
+  if (__syncing || !TOKEN) return;
+  if (__overlayOn('authScreen') || __overlayOn('sheetBg') || __overlayOn('viewer') ||
+      __overlayOn('menuBg') || __overlayOn('nameBg')) return;
+  __syncing = true;
+  try {
+    await reloadAll();
+    if (S.view === 'part') {
+      if (S.curPart && S.parts.some(function (p) { return p.id === S.curPart.id; })) renderPart();
+      else goHome();
+    } else if (S.view === 'container') {
+      if (S.curContainer && S.containers.some(function (c) { return c.id === S.curContainer.id; })) renderContainer();
+      else goHome();
+    } else {
+      renderHome();          /* 首页只重画，不 setView，免得把滚动位置顶回去 */
+    }
+  } catch (e) {
+    /* 网络不好就静静等下一次 */
+  } finally {
+    __syncing = false;
+  }
+}
+
+function startAutoSync(){
+  if (__syncTimer) return;
+  __syncTimer = setInterval(function () { syncNow(); }, 60000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) syncNow();
+  });
+}
+
+/* 让 URL.createObjectURL 直接返回云端图片地址 */
+(function () {
+  const _co = URL.createObjectURL ? URL.createObjectURL.bind(URL) : null;
+  const _rv = URL.revokeObjectURL ? URL.revokeObjectURL.bind(URL) : null;
+  URL.createObjectURL = function (x) {
+    if (x && x.__url) return x.__url;
+    return _co ? _co(x) : '';
+  };
+  URL.revokeObjectURL = function (u) {
+    if (typeof u === 'string' && u.indexOf('://') > 0) return;   /* 云端图片无需回收 */
+    if (_rv) _rv(u);
+  };
+})();
+
+/* 退出登录（设置菜单里用） */
+async function doLogout(){
+  try { await api('POST', '/api/logout'); } catch (e) {}
+  clearSession();
+  S.containers = []; S.parts = []; S.photos = [];
+  try { hideAuth(); } catch (e) {}
+  showAuth('已退出登录');
+}
+
+/* 导出备份时把云端图片地址转回 dataURL */
+async function urlToDataURL(u){
+  if (!u) return '';
+  const r = await fetch(u);
+  if (!r.ok) throw new Error('图片读取失败 ' + r.status);
+  return await blobToDataURL(await r.blob());
+}
+
+/* ---------- 把老路径翻译成云端调用 ---------- */
+async function api(method, path, body){
+  if (path === '/api/ping') return { ok: true };
+
+  if (path === '/api/config') {
+    return { allowRegister: false, needCode: false };
+  }
+
+  if (path === '/api/login') {
+    const j = await sbLogin(body.username, body.password);
+    return { token: j.access_token, username: sbName((j.user && j.user.email) || body.username) };
+  }
+
+  if (path === '/api/register') {
+    throw new Error('本应用已关闭自助注册，请联系管理员开通账号');
+  }
+
+  if (path === '/api/logout') {
+    await sbLogout();
+    return { ok: true };
+  }
+
+  if (path === '/api/me') {
+    const u = await sbMe();
+    return { username: sbName(u && u.email) };
+  }
+
+  if (path === '/api/state') return await sbState();
+  if (path === '/api/export') return await sbExportAll();
+  if (path === '/api/import') return await sbImportAll(body || {});
+
+  if (method === 'POST' && (path === '/api/containers' || path === '/api/parts')) {
+    const table = path === '/api/containers' ? 'containers' : 'parts';
+    const row = table === 'containers'
+      ? { name: body.name, icon: 'i-box', sort: body.order || 0 }
+      : { container_id: body.containerId, name: body.name, sort: body.order || 0 };
+    const rows = await sbCall('POST', SB_REST + table, row, { Prefer: 'return=representation' });
+    return { id: rows && rows[0] ? rows[0].id : null };
+  }
+
+  if (method === 'POST' && path === '/api/photos') {
+    const j = await sbUploadPhoto(body.partId, body.kind, body);
+    return { id: j.id };
+  }
+
+  let m = /^\/api\/(containers|parts|photos)\/(\d+)$/.exec(path);
+  if (m) {
+    const table = m[1], id = parseInt(m[2], 10);
+    if (method === 'PATCH') {
+      await sbCall('PATCH', SB_REST + table + '?id=eq.' + id, { name: body && body.name });
+      return { ok: true };
+    }
+    if (method === 'DELETE') {
+      await sbDeleteRow(table, id);
+      return { ok: true };
+    }
+  }
+
+  throw new Error('未知的接口：' + method + ' ' + path);
+}
+
+function partsOf(cid){
+  return S.parts.filter(p => p.containerId === cid).sort((a,b) => (a.order||0) - (b.order||0));
+}
+function photosOf(pid){
+  return S.photos.filter(p => p.partId === pid).sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+}
+function overviewOf(pid){
+  return photosOf(pid).find(p => p.kind === 'overview') || null;
+}
+function itemsOf(pid){
+  return photosOf(pid).filter(p => p.kind === 'item');
+}
+function firstPhotoOfContainer(cid){
+  for (const p of partsOf(cid)) {
+    const o = overviewOf(p.id);
+    if (o) return o;
+    const items = itemsOf(p.id);
+    if (items.length) return items[0];
+  }
+  return null;
+}
+
+/* =========================== 渲染：首页 =========================== */
+function renderHome(){
+  revokeUrls();
+  const grid = $('containerGrid');
+  grid.innerHTML = '';
+
+  let totalParts = 0, totalPhotos = 0;
+  S.containers.forEach(c => {
+    const ps = partsOf(c.id);
+    totalParts += ps.length;
+    ps.forEach(p => totalPhotos += photosOf(p.id).length);
+  });
+  $('homeStatsTxt').textContent =
+    S.containers.length + ' 件家具 · ' + totalParts + ' 个分区 · ' + totalPhotos + ' 张照片';
+
+  S.containers.forEach(c => {
+    const ps = partsOf(c.id);
+    let photoCount = 0, shot = 0;
+    ps.forEach(p => {
+      const all = photosOf(p.id);
+      photoCount += all.length;
+      if (all.length) shot++;
+    });
+
+    const first = firstPhotoOfContainer(c.id);
+    const card = document.createElement('div');
+    card.className = 'fcard';
+    card.dataset.id = c.id;
+
+    const thumb = first
+      ? '<img src="' + objUrl(first.blob) + '" alt="" loading="lazy">'
+      : '<div class="ph"><svg><use href="#' + (c.icon || 'i-box') + '"/></svg></div>';
+
+    card.innerHTML =
+      '<div class="thumb">' + thumb + '</div>' +
+      '<div class="body">' +
+        '<div class="name">' + esc(c.name) + '</div>' +
+        '<div class="meta"><span>' + ps.length + ' 个分区</span><span>' +
+          (shot ? shot + '/' + ps.length + ' 已拍' : '未开始') + '</span></div>' +
+      '</div>' +
+      '<button class="card-more" aria-label="更多"><svg><use href="#i-ellipsis"/></svg></button>';
+
+    card.addEventListener('click', () => goContainer(c.id));
+    const more = card.querySelector('.card-more');
+    if (more) more.addEventListener('click', ev => {
+      ev.stopPropagation();
+      containerMenu(c);
+    });
+    grid.appendChild(card);
+  });
+}
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, ch => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]
+  ));
+}
+
+/* =========================== 渲染：家具页 =========================== */
+function renderContainer(){
+  revokeUrls();
+  const c = S.curContainer;
+  const allPs = partsOf(c.id);
+  const unshot = allPs.filter(p => photosOf(p.id).length === 0);
+  const ps = S.onlyUnshot ? unshot : allPs;
+
+  let shot = 0, items = 0;
+  ps.forEach(p => {
+    if (photosOf(p.id).length) shot++;
+    items += itemsOf(p.id).length;
+  });
+  $('containerSub').textContent =
+    (S.onlyUnshot ? '未拍 ' + unshot.length + ' 个 / 共 ' + allPs.length + ' 个' :
+      shot + '/' + allPs.length + ' 已拍 · ' + items + ' 张单品照');
+  const ub = $('btnUnshot');
+  if (ub) {
+    ub.classList.toggle('on', S.onlyUnshot);
+    ub.textContent = S.onlyUnshot ? '显示全部' : ('只看未拍' + (unshot.length ? '(' + unshot.length + ')' : ''));
+  }
+
+  const list = $('partList');
+  list.innerHTML = '';
+
+  ps.forEach(p => {
+    const ov = overviewOf(p.id);
+    const its = itemsOf(p.id);
+    const pic = ov
+      ? '<img src="' + objUrl(ov.blob) + '" alt="" loading="lazy">'
+      : '<div class="empty"><svg><use href="#i-camera"/></svg></div>';
+
+    const row = document.createElement('div');
+    row.className = 'prow';
+    row.innerHTML =
+      '<div class="pic">' + pic + '</div>' +
+      '<div class="info">' +
+        '<div class="t">' + esc(p.name) + '</div>' +
+        '<div class="s">' + (ov ? '已拍整体照' : '未拍整体照') +
+          (its.length ? ' · ' + its.length + ' 张单品' : '') + '</div>' +
+      '</div>' +
+      '<button class="more" aria-label="更多"><svg><use href="#i-ellipsis"/></svg></button>';
+    row.addEventListener('click', () => goPart(p.id));
+    const more = row.querySelector('.more');
+    if (more) more.addEventListener('click', ev => {
+      ev.stopPropagation();
+      partMenu(p);
+    });
+    list.appendChild(row);
+  });
+}
+
+/* =========================== 渲染：分区页 =========================== */
+function renderPart(){
+  revokeUrls();
+  const p = S.curPart;
+  const ov = overviewOf(p.id);
+  const its = itemsOf(p.id);
+
+  const box = $('overviewBox');
+  if (ov) {
+    box.innerHTML =
+      '<img src="' + objUrl(ov.blob) + '" alt="整体照片" style="cursor:zoom-in">' +
+      '<div class="acts">' +
+        '<button class="ghost" id="ovReplace">替换</button>' +
+        '<button class="ghost" id="ovDelete">删除</button>' +
+      '</div>';
+    const ovImg = box.querySelector('img');
+    if (ovImg) ovImg.addEventListener('click', () => openViewer([ov], 0));
+    $('ovReplace').addEventListener('click', () => openSheet('overview'));
+    $('ovDelete').addEventListener('click', () => deletePhoto(ov.id));
+  } else {
+    box.innerHTML = '<div class="ph"><svg><use href="#i-camera"/></svg>还没有整体照片<br><span style="font-size:12px">拍一张这个分区的全貌</span></div>';
+  }
+
+  $('itemCount').textContent = its.length ? '（' + its.length + '）' : '';
+
+  const wall = $('itemWall');
+  wall.innerHTML = '';
+  its.forEach((ph, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'pcell';
+    cell.innerHTML =
+      '<img src="' + objUrl(ph.blob) + '" alt="" loading="lazy">' +
+      (ph.name ? '<div class="cap">' + esc(ph.name) + '</div>' : '') +
+      '<button class="del" aria-label="删除"><svg><use href="#i-trash"/></svg></button>';
+    cell.addEventListener('click', () => openViewer(its, idx));
+    cell.querySelector('.del').addEventListener('click', e => {
+      e.stopPropagation();
+      deletePhoto(ph.id);
+    });
+    wall.appendChild(cell);
+  });
+
+  $('itemEmpty').innerHTML = its.length ? '' :
+    '<div class="empty"><svg><use href="#i-box"/></svg>还没有单独物品照片<br><span style="font-size:12px">需要单独记录某件东西时再拍</span></div>';
+}
+
+/* =========================== 导航 =========================== */
+function setView(v){
+  S.view = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('on'));
+  $('view' + (v === 'home' ? 'Home' : v === 'container' ? 'Container' : 'Part')).classList.add('on');
+
+  $('btnBack').classList.toggle('on', v !== 'home');
+  $('fab').classList.toggle('on', v === 'part');
+
+  const title = $('pageTitle');
+  if (v === 'home') {
+    title.innerHTML = '家庭收纳管家<span class="sub" id="pageSub"></span>';
+  } else if (v === 'container') {
+    title.innerHTML = esc(S.curContainer.name) + '<span class="sub">' + partsOf(S.curContainer.id).length + ' 个分区</span>';
+  } else {
+    title.innerHTML = esc(S.curPart.name) + '<span class="sub">' + esc(S.curContainer.name) + '</span>';
+  }
+  window.scrollTo(0, 0);
+}
+
+function goHome(){ S.curContainer = null; S.curPart = null; renderHome(); setView('home'); }
+function goContainer(cid){
+  S.curContainer = S.containers.find(c => c.id === cid) || null;
+  if (!S.curContainer) return;
+  S.onlyUnshot = false;
+  renderContainer(); setView('container');
+}
+function goPart(pid){
+  S.curPart = S.parts.find(p => p.id === pid) || null;
+  if (!S.curPart) return;
+  S.curContainer = S.containers.find(c => c.id === S.curPart.containerId) || S.curContainer;
+  renderPart(); setView('part');
+}
+
+/* =========================== 上传弹层 =========================== */
+let sheetKind = 'item';
+
+function openSheet(kind){
+  sheetKind = kind;
+  S.pending = null;
+  $('sheetTitle').textContent = kind === 'overview' ? '添加整体照片' : '添加物品照片';
+  $('nameLabel').style.display = kind === 'overview' ? 'none' : 'block';
+  $('photoName').style.display = kind === 'overview' ? 'none' : 'block';
+  $('photoName').value = '';
+  $('previewImg').style.display = 'none';
+  $('previewImg').src = '';
+  $('fileInput').value = '';
+  $('fileInput').multiple = (kind === 'item');
+  $('pickBox').innerHTML = '<div style="font-size:30px;margin-bottom:6px">📷</div>' +
+    (kind === 'item' ? '点击拍照，或一次从相册选多张' : '点击拍照或从相册选择');
+  $('sheetBg').classList.add('on');
+}
+
+function closeSheet(){ $('sheetBg').classList.remove('on'); S.pending = null; }
+
+async function handleFile(file){
+  if (!file) return;
+  try {
+    toast('正在处理图片…', 'warn');
+    const r = await compressImage(file);
+    const kb = Math.round(r.blob.size / 1024);
+    S.pending = { blob: r.blob, w: r.w, h: r.h };
+    const url = URL.createObjectURL(r.blob);
+    const pv = $('previewImg');
+    pv.src = url;
+    pv.style.display = 'block';
+    pv.onload = () => URL.revokeObjectURL(url);
+    toast('已压缩到 ' + kb + ' KB（' + r.w + '×' + r.h + '）', 'ok');
+  } catch (e) {
+    toast('图片处理失败：' + e.message, 'err');
+  }
+}
+
+async function savePending(){
+  if (!S.pending) { toast('请先选择一张照片', 'err'); return; }
+  const part = S.curPart;
+  if (!part) { toast('页面状态异常，请返回重进', 'err'); return; }
+
+  const photo = {
+    partId: part.id,
+    kind: sheetKind,
+    name: sheetKind === 'item' ? ($('photoName').value.trim() || '') : '',
+    blob: S.pending.blob,
+    w: S.pending.w,
+    h: S.pending.h,
+    createdAt: Date.now()
+  };
+
+  try {
+    if (sheetKind === 'overview') {
+      // 整体照只允许一张：先删旧的
+      const old = overviewOf(part.id);
+      if (old) await reqP(tx('photos', 'readwrite').delete(old.id));
+    }
+    await reqP(tx('photos', 'readwrite').add(photo));
+    await reloadAll();
+    closeSheet();
+    renderPart();
+    toast(sheetKind === 'overview' ? '整体照片已保存' : '照片已添加', 'ok');
+  } catch (e) {
+    toast('保存失败：' + (e && e.message ? e.message : '存储空间可能不足'), 'err');
+  }
+}
+
+async function deletePhoto(id){
+  if (!confirm('确定删除这张照片吗？')) return;
+  try {
+    await reqP(tx('photos', 'readwrite').delete(id));
+    await reloadAll();
+    if (S.view === 'part') renderPart();
+    else if (S.view === 'container') renderContainer();
+    else renderHome();
+    toast('已删除', 'ok');
+  } catch (e) {
+    toast('删除失败', 'err');
+  }
+}
+
+/* =========================== 搜索 =========================== */
+function doSearch(q){
+  q = q.trim().toLowerCase();
+  const res = $('searchResults');
+  const grid = $('containerGrid');
+  const stats = $('homeStats');
+
+  if (!q) {
+    res.innerHTML = '';
+    grid.style.display = '';
+    stats.style.display = '';
+    return;
+  }
+  grid.style.display = 'none';
+  stats.style.display = 'none';
+
+  const hits = [];
+  S.containers.forEach(c => {
+    if (c.name.toLowerCase().includes(q)) hits.push({ type:'c', c:c });
+    partsOf(c.id).forEach(p => {
+      const its = itemsOf(p.id).filter(ph => ph.name && ph.name.toLowerCase().includes(q));
+      if (its.length) hits.push({ type:'p', c:c, p:p, items:its });
+      else if (p.name.toLowerCase().includes(q)) hits.push({ type:'p', c:c, p:p, items:[] });
+    });
+  });
+
+  if (!hits.length) {
+    res.innerHTML = '<div class="empty"><svg><use href="#i-search"/></svg>没找到“' + esc(q) + '”</div>';
+    return;
+  }
+
+  let html = '<div class="section-title"><span>找到 ' + hits.length + ' 处</span></div><div class="list">';
+  hits.forEach(h => {
+    if (h.type === 'c') {
+      html += '<div class="prow" data-cid="' + h.c.id + '">' +
+        '<div class="pic"><div class="empty"><svg><use href="#i-box"/></svg></div></div>' +
+        '<div class="info"><div class="t">' + esc(h.c.name) + '</div>' +
+        '<div class="s">家具 · ' + partsOf(h.c.id).length + ' 个分区</div></div></div>';
+    } else {
+      html += '<div class="prow" data-pid="' + h.p.id + '">' +
+        '<div class="pic"><div class="empty"><svg><use href="#i-box"/></svg></div></div>' +
+        '<div class="info"><div class="t">' + esc(h.c.name) + ' · ' + esc(h.p.name) + '</div>' +
+        '<div class="s">' + (h.items.length ? '匹配 ' + h.items.map(x => esc(x.name)).join('、') : '分区名匹配') + '</div></div></div>';
+    }
+  });
+  html += '</div>';
+  res.innerHTML = html;
+
+  res.querySelectorAll('[data-cid]').forEach(el =>
+    el.addEventListener('click', () => goContainer(+el.dataset.cid)));
+  res.querySelectorAll('[data-pid]').forEach(el =>
+    el.addEventListener('click', () => goPart(+el.dataset.pid)));
+}
+
+/* =========================== 备份导出 =========================== */
+function blobToDataURL(b){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(b);
+  });
+}
+
+async function exportBackup(){
+  try {
+    toast('正在生成备份，照片多时请稍候…', 'warn');
+    const data = { app:'home-storage', version:1, exportedAt:new Date().toISOString(), containers:[], parts:[], photos:[] };
+
+    data.containers = S.containers.map(c => ({ id:c.id, name:c.name, order:c.order }));
+    data.parts = S.parts.map(p => ({ id:p.id, containerId:p.containerId, name:p.name, order:p.order }));
+
+    for (const ph of S.photos) {
+      let du = '';
+      try { du = await urlToDataURL(ph.blob && ph.blob.__url); } catch (e) {}
+      data.photos.push({
+        id: ph.id, partId: ph.partId, kind: ph.kind, name: ph.name || '',
+        w: ph.w, h: ph.h, createdAt: ph.createdAt,
+        dataUrl: du
+      });
+    }
+
+    const blob = new Blob([JSON.stringify(data)], { type:'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '收纳备份-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('备份已生成（' + data.photos.length + ' 张照片）', 'ok');
+  } catch (e) {
+    toast('导出失败：' + (e && e.message ? e.message : e), 'err');
+  }
+}
+
+
+/* =========================== 操作单 =========================== */
+let menuOnPick = null;
+
+function openMenu(title, items){
+  const box = $('menuBox');
+  box.innerHTML = '';
+  if (title) {
+    const t = document.createElement('div');
+    t.className = 'mtitle';
+    t.textContent = title;
+    box.appendChild(t);
+  }
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.textContent = it.label;
+    if (it.danger) b.className = 'danger';
+    b.addEventListener('click', () => {
+      closeMenu();
+      setTimeout(() => { try { it.fn(); } catch (e) { toast('操作失败：' + e.message, 'err'); } }, 120);
+    });
+    box.appendChild(b);
+  });
+  const c = document.createElement('button');
+  c.textContent = '取消';
+  c.className = 'cancel';
+  c.addEventListener('click', closeMenu);
+  box.appendChild(c);
+  $('menuBg').classList.add('on');
+}
+function closeMenu(){ $('menuBg').classList.remove('on'); }
+
+function containerMenu(c){
+  openMenu(c.name, [
+    { label:'查看分区', fn: () => goContainer(c.id) },
+    { label:'重命名家具', fn: () => askName('重命名家具', c.name, async v => {
+        await reqP(tx('containers','readwrite').put(Object.assign({}, c, { name:v })));
+        await reloadAll(); renderHome(); setView('home'); toast('已重命名', 'ok');
+      }) },
+    { label:'删除这件家具（含其中所有照片）', danger:true, fn: async () => {
+        const ps = partsOf(c.id);
+        const n = ps.reduce((a, p) => a + photosOf(p.id).length, 0);
+        if (!confirm('删除"' + c.name + '"及其 ' + ps.length + ' 个分区、' + n + ' 张照片？\n此操作不可恢复。')) return;
+        for (const p of ps) {
+          for (const ph of photosOf(p.id)) await reqP(tx('photos','readwrite').delete(ph.id));
+          await reqP(tx('parts','readwrite').delete(p.id));
+        }
+        await reqP(tx('containers','readwrite').delete(c.id));
+        await reloadAll(); renderHome(); setView('home'); toast('已删除', 'ok');
+      } }
+  ]);
+}
+
+function partMenu(p){
+  openMenu(p.name, [
+    { label:'打开', fn: () => goPart(p.id) },
+    { label:'重命名分区', fn: () => askName('重命名分区', p.name, async v => {
+        await reqP(tx('parts','readwrite').put(Object.assign({}, p, { name:v })));
+        await reloadAll(); renderContainer(); toast('已重命名', 'ok');
+      }) },
+    { label:'删除这个分区（含照片）', danger:true, fn: async () => {
+        const n = photosOf(p.id).length;
+        if (!confirm('删除"' + p.name + '"及其中 ' + n + ' 张照片？\n此操作不可恢复。')) return;
+        for (const ph of photosOf(p.id)) await reqP(tx('photos','readwrite').delete(ph.id));
+        await reqP(tx('parts','readwrite').delete(p.id));
+        await reloadAll(); renderContainer(); toast('已删除', 'ok');
+      } }
+  ]);
+}
+
+/* =========================== 命名弹层 =========================== */
+let nameCb = null;
+
+function askName(title, defVal, cb){
+  nameCb = cb;
+  $('nameTitle').textContent = title;
+  $('nameInput').value = defVal || '';
+  $('nameBg').classList.add('on');
+  setTimeout(() => { try { $('nameInput').focus(); } catch (e) {} }, 150);
+}
+function closeName(){ $('nameBg').classList.remove('on'); nameCb = null; }
+
+async function confirmName(){
+  const v = $('nameInput').value.trim();
+  if (!v) { toast('名称不能为空', 'err'); return; }
+  const cb = nameCb;
+  closeName();
+  if (cb) await cb(v);
+}
+
+/* =========================== 增删 =========================== */
+function addContainer(){
+  askName('新增家具', '', async v => {
+    const order = S.containers.length;
+    const r = await reqP(tx('containers','readwrite').add({ name:v, icon:'i-box', order:order, createdAt:Date.now() }));
+    // 新家具默认带一个分区，免得空着没法拍照
+    await reqP(tx('parts','readwrite').add({ containerId:r, name:'整体', order:0 }));
+    await reloadAll(); renderHome(); setView('home');
+    toast('已添加"' + v + '"，可在里面继续新增分区', 'ok');
+  });
+}
+
+function addPart(){
+  if (!S.curContainer) { toast('请先进入一件家具', 'err'); return; }
+  askName('新增分区', '', async v => {
+    const order = partsOf(S.curContainer.id).length;
+    await reqP(tx('parts','readwrite').add({ containerId:S.curContainer.id, name:v, order:order }));
+    await reloadAll(); renderContainer();
+    toast('已添加分区"' + v + '"', 'ok');
+  });
+}
+
+/* =========================== 导入备份 =========================== */
+function dataUrlToBlob(u){
+  const i = u.indexOf(',');
+  const head = u.slice(0, i);
+  const b64 = u.slice(i + 1);
+  const mm = head.match(/:(.*?);/);
+  const mime = mm ? mm[1] : 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+  return new Blob([arr], { type: mime });
+}
+
+function importBackup(){
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0];
+    if (!f) { inp.remove(); return; }
+    const r = new FileReader();
+    r.onload = async () => {
+      try {
+        let data;
+        try { data = JSON.parse(r.result); }
+        catch (e) { throw new Error('文件不是合法的 JSON'); }
+        if (!data || data.app !== 'home-storage') throw new Error('不是本应用的备份文件');
+        if (!Array.isArray(data.containers) || !Array.isArray(data.parts)) throw new Error('备份内容不完整');
+
+        if (!confirm('导入将覆盖当前全部数据。\n\n当前：' + S.containers.length + ' 件家具 / ' +
+                     S.photos.length + ' 张照片\n备份：' + data.containers.length + ' 件家具 / ' +
+                     (data.photos ? data.photos.length : 0) + ' 张照片\n\n确定继续？')) { inp.remove(); return; }
+
+        toast('正在导入，照片多时请稍候…', 'warn');
+        try {
+          const r = await api('POST', '/api/import', {
+            containers: data.containers,
+            parts: data.parts,
+            photos: (data.photos || []).filter(function (p) { return p.dataUrl; })
+          });
+          await reloadAll();
+          renderHome(); setView('home');
+          toast('导入完成：' + r.containers + ' 件家具 / ' + r.photos + ' 张照片', 'ok');
+        } catch (e) {
+          toast('导入失败：' + (e && e.message ? e.message : e), 'err');
+        }
+        inp.remove();
+        return;
+      } catch (e) {
+        toast('导入失败：' + (e && e.message ? e.message : e), 'err');
+      }
+      inp.remove();
+    };
+    r.onerror = () => { toast('读取文件失败', 'err'); inp.remove(); };
+    r.readAsText(f);
+  });
+  inp.click();
+}
+
+/* =========================== 使用说明 =========================== */
+function showHelp(){
+  const lines = [
+    '共 ' + S.containers.length + ' 件家具、' + S.parts.length + ' 个分区。',
+    '',
+    '每个分区先拍一张「整体照片」，以后要单独记某件东西，再用「单独添加」。',
+    '整体照只存一张，重拍会替换；单品照可以无限加，每张能写名称。',
+    '',
+    '照片会自动压缩到 1280px（手机原图能缩到 1/10 大小）。',
+    '',
+    '数据存在云端，所有账号共用同一份：换手机、清缓存都不会丢。',
+    '建议偶尔点一次「导出备份」，存一份到电脑里做双保险。'
+  ];
+  alert(lines.join('\n'));
+}
+
+
+/* =========================== 大图查看器 =========================== */
+let vList = [], vIdx = 0, vTouchX = 0;
+
+function openViewer(list, idx){
+  if (!list || !list.length) return;
+  vList = list;
+  vIdx = Math.max(0, Math.min(idx || 0, list.length - 1));
+  $('viewer').classList.add('on');
+  showViewer();
+}
+
+function showViewer(){
+  if (!vList.length) { closeViewer(); return; }
+  const ph = vList[vIdx];
+  const img = $('viewerImg');
+
+  // 上一张的 objectURL 及时回收
+  const old = img.getAttribute('data-url');
+  if (old) { try { URL.revokeObjectURL(old); } catch (e) {} }
+
+  const u = URL.createObjectURL(ph.blob);
+  img.setAttribute('data-url', u);
+  img.src = u;
+
+  $('viewerTitle').textContent = (ph.kind === 'overview' ? '整体照片' : (ph.name || '物品照片'));
+  $('viewerCount').textContent = vList.length > 1 ? (vIdx + 1) + ' / ' + vList.length : '';
+  $('viewerPrev').disabled = vIdx <= 0;
+  $('viewerNext').disabled = vIdx >= vList.length - 1;
+  $('viewerRename').style.display = ph.kind === 'item' ? '' : 'none';
+}
+
+function closeViewer(){
+  const img = $('viewerImg');
+  const old = img.getAttribute('data-url');
+  if (old) { try { URL.revokeObjectURL(old); } catch (e) {} }
+  img.removeAttribute('data-url');
+  img.src = '';
+  $('viewer').classList.remove('on');
+  vList = [];
+}
+
+function viewerStep(d){
+  const n = vIdx + d;
+  if (n < 0 || n >= vList.length) return;
+  vIdx = n;
+  showViewer();
+}
+
+async function viewerRename(){
+  const ph = vList[vIdx];
+  if (!ph || ph.kind !== 'item') return;
+  askName('重命名物品', ph.name || '', async v => {
+    await reqP(tx('photos','readwrite').put(Object.assign({}, ph, { name: v })));
+    await reloadAll();
+    ph.name = v;
+    showViewer();
+    if (S.view === 'part') renderPart();
+    toast('已重命名', 'ok');
+  });
+}
+
+async function viewerDelete(){
+  const ph = vList[vIdx];
+  if (!ph) return;
+  if (!confirm('确定删除这张照片吗？')) return;
+  try {
+    await reqP(tx('photos','readwrite').delete(ph.id));
+    await reloadAll();
+    vList = vList.filter(x => x.id !== ph.id);
+    if (!vList.length) { closeViewer(); }
+    else { vIdx = Math.min(vIdx, vList.length - 1); showViewer(); }
+    if (S.view === 'part') renderPart();
+    toast('已删除', 'ok');
+  } catch (e) { toast('删除失败', 'err'); }
+}
+
+/* =========================== 只看未拍 =========================== */
+S.onlyUnshot = false;
+
+function toggleUnshot(){
+  S.onlyUnshot = !S.onlyUnshot;
+  const b = $('btnUnshot');
+  if (b) b.classList.toggle('on', S.onlyUnshot);
+  renderContainer();
+}
+
+/* =========================== 启动 =========================== */
+let uiBound = false;
+function bindUI(force){
+  if (uiBound && !force) return;
+  uiBound = true;
+  $('btnBack').addEventListener('click', () => {
+    if (S.view === 'part') goContainer(S.curContainer.id);
+    else goHome();
+  });
+
+  $('fab').addEventListener('click', () => openSheet('item'));
+  $('btnAddItem').addEventListener('click', () => openSheet('item'));
+  $('btnOverview').addEventListener('click', () => openSheet('overview'));
+
+  $('pickBox').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async e => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    // 单张 / 整体照：走预览确认流程
+    if (sheetKind === 'overview' || files.length === 1) { handleFile(files[0]); return; }
+    // 多张：逐张压缩后直接入库
+    if (!S.curPart) { toast('页面状态异常', 'err'); return; }
+    toast('正在处理 ' + files.length + ' 张照片…', 'warn');
+    let ok = 0, fail = 0;
+    for (const f of files) {
+      try {
+        const r = await compressImage(f);
+        await reqP(tx('photos','readwrite').add({
+          partId: S.curPart.id, kind: 'item', name: '',
+          blob: r.blob, w: r.w, h: r.h, createdAt: Date.now()
+        }));
+        ok++;
+      } catch (err) { fail++; }
+    }
+    await reloadAll();
+    closeSheet();
+    renderPart();
+    toast('已添加 ' + ok + ' 张' + (fail ? '，' + fail + ' 张失败' : ''), ok ? 'ok' : 'err');
+  });
+
+  $('btnCancel').addEventListener('click', closeSheet);
+  $('btnSave').addEventListener('click', savePending);
+  $('sheetBg').addEventListener('click', e => { if (e.target === $('sheetBg')) closeSheet(); });
+
+  $('searchInput').addEventListener('input', e => doSearch(e.target.value));
+
+  $('btnInfo').addEventListener('click', () => {
+    openMenu('设置', [
+      { label:'使用说明', fn: showHelp },
+      { label:'导出备份（含全部照片）', fn: exportBackup },
+      { label:'导入备份', fn: importBackup },
+      { label:'退出登录', fn: doLogout }
+    ]);
+  });
+
+  const bac = $('btnAddContainer');
+  if (bac) bac.addEventListener('click', addContainer);
+  const bap = $('btnAddPart');
+  if (bap) bap.addEventListener('click', addPart);
+
+  $('nameCancel').addEventListener('click', closeName);
+  $('nameOk').addEventListener('click', confirmName);
+  $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') confirmName(); });
+  $('nameBg').addEventListener('click', e => { if (e.target === $('nameBg')) closeName(); });
+  $('menuBg').addEventListener('click', e => { if (e.target === $('menuBg')) closeMenu(); });
+
+  /* 大图查看器 */
+  $('viewerClose').addEventListener('click', closeViewer);
+  $('viewerPrev').addEventListener('click', () => viewerStep(-1));
+  $('viewerNext').addEventListener('click', () => viewerStep(1));
+  $('viewerRename').addEventListener('click', viewerRename);
+  $('viewerDelete').addEventListener('click', viewerDelete);
+
+  // 左右滑动切换
+  const stage = $('viewerStage');
+  stage.addEventListener('touchstart', e => { vTouchX = e.touches[0].clientX; }, { passive: true });
+  stage.addEventListener('touchend', e => {
+    const dx = (e.changedTouches[0].clientX - vTouchX);
+    if (Math.abs(dx) > 45) viewerStep(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  // 键盘：Esc 关闭、左右切换
+  document.addEventListener('keydown', e => {
+    if (!$('viewer').classList.contains('on')) return;
+    if (e.key === 'Escape') closeViewer();
+    else if (e.key === 'ArrowLeft') viewerStep(-1);
+    else if (e.key === 'ArrowRight') viewerStep(1);
+  });
+
+  const bus = $('btnUnshot');
+  if (bus) bus.addEventListener('click', toggleUnshot);
+
+  /* 登录界面 */
+  const ab = $('authBtn');
+  if (ab) ab.addEventListener('click', doAuth);
+  const asw = $('authSwitch');
+  if (asw) asw.addEventListener('click', function () {
+    setAuthMode(authMode === 'login' ? 'register' : 'login');
+  });
+  const ap = $('authPass');
+  if (ap) ap.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
+  const ac = $('authCode');
+  if (ac) ac.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
+}
+
+async function boot(){
+  try { TOKEN = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { TOKEN = ''; }
+  try { REFRESH = localStorage.getItem(REFRESH_KEY) || ''; } catch (e) { REFRESH = ''; }
+  try { EXP_AT = parseInt(localStorage.getItem(EXP_KEY) || '0', 10) || 0; } catch (e) { EXP_AT = 0; }
+
+  if (TOKEN) {
+    try {
+      await api('GET', '/api/me');
+      await reloadAll();
+      hideAuth();
+      bindUI();
+      renderHome();
+      setView('home');
+      return;
+    } catch (e) {
+      TOKEN = '';
+      try { localStorage.removeItem(TOKEN_KEY); } catch (e2) {}
+    }
+  }
+  showAuth('');
+}
+
+/* =========================== 登录界面 =========================== */
+let authMode = 'login';
+let serverConfig = { allowRegister: true, needCode: false, loaded: false };
+
+async function loadServerConfig(){
+  try {
+    const j = await api('GET', '/api/config');
+    serverConfig.allowRegister = !!j.allowRegister;
+    serverConfig.needCode = !!j.needCode;
+  } catch (e) {
+    serverConfig.allowRegister = true;   // 读不到就按允许处理，别把用户挡在外面
+  }
+  serverConfig.loaded = true;
+  applyAuthPolicy();
+  // 首次读到「注册已关闭」时补一句提示（不覆盖已有提示）
+  const m = $('authMsg');
+  if (!serverConfig.allowRegister && m && !m.textContent) {
+    m.textContent = '请用已有账号登录。需要新账号，请让管理员在 Supabase 后台添加。';
+  }
+}
+
+function applyAuthPolicy(){
+  const asw = $('authSwitch');
+  if (!asw) return;
+  if (serverConfig.allowRegister) {
+    asw.style.display = '';
+  } else {
+    // 注册已关闭：隐藏入口；如果误入注册模式，退回登录
+    asw.style.display = 'none';
+    if (authMode === 'register') setAuthMode('login');
+  }
+  const ac = $('authCode');
+  if (ac) {
+    const need = serverConfig.allowRegister && serverConfig.needCode && authMode === 'register';
+    ac.style.display = need ? 'block' : 'none';
+  }
+}
+
+function showAuth(msg){
+  const el = $('authScreen');
+  if (!el) return;
+  el.classList.add('on');
+  // 注意顺序：setAuthMode 会清空提示，所以提示必须放在它后面设置
+  setAuthMode(authMode);
+  if (!serverConfig.loaded) loadServerConfig(); else applyAuthPolicy();
+  let text = msg || '';
+  if (!text && serverConfig.loaded && !serverConfig.allowRegister) {
+    text = '请用已有账号登录。需要新账号，请让管理员在 Supabase 后台添加。';
+  }
+  $('authMsg').textContent = text;
+}
+
+function hideAuth(){
+  const el = $('authScreen');
+  if (el) el.classList.remove('on');
+}
+
+function setAuthMode(m){
+  authMode = m;
+  const isLogin = m === 'login';
+  $('authBtn').textContent = isLogin ? '登 录' : '注 册';
+  $('authSwitch').textContent = isLogin ? '没有账号？注册一个' : '已有账号？去登录';
+  $('authCode').style.display = (serverConfig.needCode && !isLogin) ? 'block' : 'none';
+  $('authMsg').textContent = '';
+  applyAuthPolicy();
+}
+
+async function doAuth(){
+  const u = $('authUser').value.trim();
+  const p = $('authPass').value;
+  if (!u) { $('authMsg').textContent = '请输入用户名'; return; }
+  if (!p) { $('authMsg').textContent = '请输入密码'; return; }
+  const btn = $('authBtn');
+  btn.disabled = true;
+  $('authMsg').textContent = authMode === 'login' ? '正在登录…' : '正在注册…';
+  try {
+    const j = await api('POST', authMode === 'login' ? '/api/login' : '/api/register',
+                        { username: u, password: p, code: $('authCode').value });
+    TOKEN = j.token;
+    try { localStorage.setItem(TOKEN_KEY, TOKEN); } catch (e) {}
+    await reloadAll();
+    hideAuth();
+    bindUI(true);
+    renderHome();
+    setView('home');
+    toast('欢迎，' + j.username, 'ok');
+  } catch (e) {
+    $('authMsg').textContent = e && e.message ? e.message : '失败';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>
