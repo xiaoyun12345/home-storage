@@ -624,6 +624,31 @@ async function ensureFresh(){
   }
 }
 
+/* 瞬时故障重试：偶发 5xx / 网络抖动时自己再试两次，别让家里人看到"操作失败"
+   GET / PATCH / DELETE 都安全（幂等）；POST 不重试，免得重复插入。 */
+async function sbSend(method, path, opt){
+  const safe = method === 'GET' || method === 'HEAD' || method === 'PATCH' || method === 'DELETE';
+  const tries = safe ? 3 : 1;
+  let lastErr = null;
+  for (let i = 0; i < tries; i++) {
+    let res = null;
+    try {
+      res = await sbFetchRaw(path, opt);
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) { await new Promise(function (r) { setTimeout(r, 250 * (i + 1)); }); continue; }
+      throw e;
+    }
+    if (res.status >= 500 && i < tries - 1) {
+      lastErr = sbErr(res, null);
+      await new Promise(function (r) { setTimeout(r, 250 * (i + 1)); });
+      continue;
+    }
+    return res;
+  }
+  throw lastErr || new Error('请求失败');
+}
+
 /* 统一请求：过期前自动续期，401 再试一次 */
 async function sbCall(method, path, body, extra){
   await ensureFresh();
@@ -632,10 +657,10 @@ async function sbCall(method, path, body, extra){
     opt.headers['Content-Type'] = 'application/json';
     opt.body = JSON.stringify(body);
   }
-  let res = await sbFetchRaw(path, opt);
+  let res = await sbSend(method, path, opt);
   if (res.status === 401 && REFRESH) {
     try { await sbRefreshOnce(); } catch (e) {}
-    res = await sbFetchRaw(path, opt);
+    res = await sbSend(method, path, opt);
   }
   const j = await sbJson(res);
   if (res.status === 401) {
@@ -704,11 +729,19 @@ const SEL_P = 'select=id,container_id,name,sort&order=sort.asc,id.asc';
 const SEL_H = 'select=id,part_id,kind,name,mime,w,h,storage_path,created_at&order=created_at.desc';
 
 async function sbState(){
-  const r = await Promise.all([
-    sbCall('GET', SB_REST + 'containers?' + SEL_C),
-    sbCall('GET', SB_REST + 'parts?' + SEL_P),
-    sbCall('GET', SB_REST + 'photos?' + SEL_H)
-  ]);
+  const urls = [
+    SB_REST + 'containers?' + SEL_C,
+    SB_REST + 'parts?' + SEL_P,
+    SB_REST + 'photos?' + SEL_H
+  ];
+  const settled = await Promise.allSettled(urls.map(function (u) { return sbCall('GET', u); }));
+  const r = [];
+  for (let i = 0; i < settled.length; i++) {
+    if (settled[i].status === 'fulfilled') { r.push(settled[i].value); continue; }
+    /* 某一路偶发失败：单独再试一次，别因为一次抖动让整屏数据都刷不出来 */
+    try { r.push(await sbCall('GET', urls[i])); }
+    catch (e) { throw new Error('云端暂时不稳（' + ((e && e.message) || '请求失败') + '），请稍后重试'); }
+  }
   return {
     containers: (r[0] || []).map(function (x) {
       return { id: x.id, name: x.name, icon: x.icon || 'i-box', sort: x.sort || 0, created_at: x.created_at };
