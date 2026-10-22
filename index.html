@@ -803,7 +803,8 @@ async function sbUploadPhoto(partId, kind, rec){
   if (kind === 'overview') {
     const old = await sbCall('GET', SB_REST + 'photos?select=id,storage_path&part_id=eq.' + partId + '&kind=eq.overview');
     for (const o of (old || [])) {
-      await sbCall('DELETE', SB_REST + 'photos?id=eq.' + o.id);
+      await sbCall('DELETE', SB_REST + 'photos?id=eq.' + o.id, undefined,
+               { Prefer: 'return=representation' });
       await sbDeleteObjects([o.storage_path]);
     }
   }
@@ -838,12 +839,14 @@ async function sbDeleteRow(table, id){
   if (table === 'containers') {
     const ps = await sbCall('GET', SB_REST + 'parts?select=id&container_id=eq.' + id);
     await sbDeletePhotosOfParts((ps || []).map(function (x) { return x.id; }));
-    await sbCall('DELETE', SB_REST + 'containers?id=eq.' + id);
+    await sbCall('DELETE', SB_REST + 'containers?id=eq.' + id, undefined,
+                 { Prefer: 'return=representation' });
     return id;
   }
   if (table === 'parts') {
     await sbDeletePhotosOfParts([id]);
-    await sbCall('DELETE', SB_REST + 'parts?id=eq.' + id);
+    await sbCall('DELETE', SB_REST + 'parts?id=eq.' + id, undefined,
+                 { Prefer: 'return=representation' });
     return id;
   }
   const rows = await sbCall('DELETE', SB_REST + 'photos?id=eq.' + id, undefined,
@@ -882,9 +885,12 @@ async function sbImportAll(body){
   const photos = body.photos || [];
 
   /* 1) 清空旧数据（含存储桶里的文件） */
-  await sbCall('DELETE', SB_REST + 'photos?id=gt.0');
-  await sbCall('DELETE', SB_REST + 'parts?id=gt.0');
-  await sbCall('DELETE', SB_REST + 'containers?id=gt.0');
+  await sbCall('DELETE', SB_REST + 'photos?id=gt.0', undefined,
+               { Prefer: 'return=representation' });
+  await sbCall('DELETE', SB_REST + 'parts?id=gt.0', undefined,
+               { Prefer: 'return=representation' });
+  await sbCall('DELETE', SB_REST + 'containers?id=gt.0', undefined,
+               { Prefer: 'return=representation' });
   try {
     const all = [];
     await sbListAllFiles('', all);
@@ -914,7 +920,8 @@ async function sbImportAll(body){
 
   /* 4) 把自增序列对齐到导入后的最大 id，否则以后新增会撞号（409） */
   try {
-    await sbCall('POST', '/rest/v1/rpc/hs_fix_sequences', {});
+    await sbCall('POST', '/rest/v1/rpc/hs_fix_sequences', {},
+                 { Prefer: 'return=representation' });
   } catch (e) {
     toast('序列修复未执行，后续新增可能撞号（409）：' + (e && e.message ? e.message : e), 'err');
   }
@@ -961,11 +968,14 @@ function tx(store, mode){
     put: function (rec) {
       return fakeReq(async function () {
         if (store === 'photos') {
-          await sbCall('PATCH', SB_REST + 'photos?id=eq.' + rec.id, { name: rec.name || '' });
+          await sbCall('PATCH', SB_REST + 'photos?id=eq.' + rec.id, { name: rec.name || '' },
+                       { Prefer: 'return=representation' });
         } else if (store === 'containers') {
-          await sbCall('PATCH', SB_REST + 'containers?id=eq.' + rec.id, { name: rec.name });
+          await sbCall('PATCH', SB_REST + 'containers?id=eq.' + rec.id, { name: rec.name },
+                       { Prefer: 'return=representation' });
         } else if (store === 'parts') {
-          await sbCall('PATCH', SB_REST + 'parts?id=eq.' + rec.id, { name: rec.name });
+          await sbCall('PATCH', SB_REST + 'parts?id=eq.' + rec.id, { name: rec.name },
+                       { Prefer: 'return=representation' });
         }
         return rec.id;
       });
@@ -1149,7 +1159,8 @@ async function api(method, path, body){
   if (m) {
     const table = m[1], id = parseInt(m[2], 10);
     if (method === 'PATCH') {
-      await sbCall('PATCH', SB_REST + table + '?id=eq.' + id, { name: body && body.name });
+      await sbCall('PATCH', SB_REST + table + '?id=eq.' + id, { name: body && body.name },
+                   { Prefer: 'return=representation' });
       return { ok: true };
     }
     if (method === 'DELETE') {
