@@ -593,9 +593,10 @@ function clearSession(){
 
 async function sbRefresh(){
   if (!REFRESH) throw new Error('登录已过期，请重新登录');
-  const res = await fetch(SB_URL + '/auth/v1/token?grant_type=refresh_token', {
+  /* 走 sbFetchRaw：离线时抛统一中文「连不上云端」，boot 才能保住登录态而不是误清会话 */
+  const res = await sbFetchRaw('/auth/v1/token?grant_type=refresh_token', {
     method: 'POST',
-    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: REFRESH })
   });
   const j = await sbJson(res);
@@ -648,9 +649,10 @@ async function sbCall(method, path, body, extra){
 
 /* ---------- 登录 / 账号 ---------- */
 async function sbLogin(username, password){
-  const res = await fetch(SB_URL + '/auth/v1/token?grant_type=password', {
+  /* 走 sbFetchRaw：离线登录也显示中文「连不上云端」而非 Failed to fetch */
+  const res = await sbFetchRaw('/auth/v1/token?grant_type=password', {
     method: 'POST',
-    headers: { apikey: SB_KEY, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: sbEmail(username), password: password })
   });
   const j = await sbJson(res);
@@ -728,12 +730,12 @@ async function sbState(){
 function sbRand(){ return Math.random().toString(36).slice(2, 8); }
 
 async function sbPutObject(path, blob, mime){
+  /* sbFetchRaw 统一补 apikey/Authorization，离线时报中文「连不上云端」；
+     它不自动续期，令牌过期仍要自己续一次再试 */
   const send = function () {
-    return fetch(SB_URL + '/storage/v1/object/photos/' + path, {
+    return sbFetchRaw('/storage/v1/object/photos/' + path, {
       method: 'POST',
       headers: {
-        apikey: SB_KEY,
-        Authorization: 'Bearer ' + TOKEN,
         'Content-Type': mime || 'image/jpeg',
         'x-upsert': 'true'
       },
@@ -743,7 +745,7 @@ async function sbPutObject(path, blob, mime){
   await ensureFresh();
   let res = await send();
   if ((res.status === 401 || res.status === 403) && REFRESH) {
-    /* 上传是裸 fetch，不走 sbCall，令牌过期要自己续一次再试 */
+    /* 上传不走 sbCall，令牌过期要自己续一次再试 */
     try { await sbRefreshOnce(); } catch (e) {}
     res = await send();
   }
@@ -775,8 +777,10 @@ async function sbListAllFiles(prefix, out){
     let got = 0;
     for (const o of objs) {
       if (!o || !o.name) continue;
-      const isFolder = !!(o.metadata && o.metadata.is_folder);
       const full = prefix ? prefix + '/' + o.name : o.name;
+      /* Supabase 原生 list 中文件夹条目 id/metadata 全为 null，文件条目才有 id+metadata；
+         用「缺 id 或 metadata」判文件夹才能触发递归，metadata.is_folder 字段根本不存在 */
+      const isFolder = !o.id || !o.metadata;
       if (isFolder) {
         await sbListAllFiles(full, out);
       } else if (out.indexOf(full) < 0) {
@@ -1086,7 +1090,12 @@ async function doLogout(){
 /* 导出备份时把云端图片地址转回 dataURL */
 async function urlToDataURL(u){
   if (!u) return '';
-  const r = await fetch(u);
+  let r;
+  try {
+    r = await fetch(u);
+  } catch (e) {
+    throw new Error('连不上云端，图片读取失败');
+  }
   if (!r.ok) throw new Error('图片读取失败 ' + r.status);
   return await blobToDataURL(await r.blob());
 }
