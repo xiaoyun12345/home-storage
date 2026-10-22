@@ -1044,7 +1044,7 @@ function startAutoSync(){
     return _co ? _co(x) : '';
   };
   URL.revokeObjectURL = function (u) {
-    if (typeof u === 'string' && u.indexOf('://') > 0) return;   /* 云端图片无需回收 */
+    if (typeof u === 'string' && /^https?:\/\//.test(u)) return;   /* 云端图片无需回收 */
     if (_rv) _rv(u);
   };
 })();
@@ -1325,7 +1325,12 @@ function setView(v){
   window.scrollTo(0, 0);
 }
 
-function goHome(){ S.curContainer = null; S.curPart = null; renderHome(); setView('home'); }
+function goHome(){
+  S.curContainer = null; S.curPart = null;
+  const si = $('searchInput'); if (si) si.value = '';
+  doSearch('');
+  renderHome(); setView('home');
+}
 function goContainer(cid){
   S.curContainer = S.containers.find(c => c.id === cid) || null;
   if (!S.curContainer) return;
@@ -1658,6 +1663,7 @@ function importBackup(){
         try { data = JSON.parse(r.result); }
         catch (e) { throw new Error('文件不是合法的 JSON'); }
         if (!data || data.app !== 'home-storage') throw new Error('不是本应用的备份文件');
+        if (data.version && data.version > 1) throw new Error('备份版本过新，请升级应用后再导入（备份版本 v' + data.version + '）');
         if (!Array.isArray(data.containers) || !Array.isArray(data.parts)) throw new Error('备份内容不完整');
 
         if (!confirm('导入将覆盖当前全部数据。\n\n当前：' + S.containers.length + ' 件家具 / ' +
@@ -1761,7 +1767,8 @@ async function viewerRename(){
   askName('重命名物品', ph.name || '', async v => {
     await reqP(tx('photos','readwrite').put(Object.assign({}, ph, { name: v })));
     await reloadAll();
-    ph.name = v;
+    vList = itemsOf(ph.partId);
+    vIdx = Math.max(0, vList.findIndex(x => x.id === ph.id));
     showViewer();
     if (S.view === 'part') renderPart();
     toast('已重命名', 'ok');
@@ -1775,7 +1782,7 @@ async function viewerDelete(){
   try {
     await reqP(tx('photos','readwrite').delete(ph.id));
     await reloadAll();
-    vList = vList.filter(x => x.id !== ph.id);
+    vList = ph.kind === 'overview' ? [] : itemsOf(ph.partId);
     if (!vList.length) { closeViewer(); }
     else { vIdx = Math.min(vIdx, vList.length - 1); showViewer(); }
     if (S.view === 'part') renderPart();
@@ -1944,6 +1951,8 @@ async function loadServerConfig(){
 function applyAuthPolicy(){
   const asw = $('authSwitch');
   if (!asw) return;
+  // 配置未拉取前不展示注册入口，避免短暂误开
+  if (!serverConfig.loaded) { asw.style.display = 'none'; return; }
   if (serverConfig.allowRegister) {
     asw.style.display = '';
   } else {
