@@ -765,6 +765,31 @@ async function sbDeleteObjects(paths){
   } catch (e) { /* 文件删不掉不算致命 */ }
 }
 
+/* 递归列出桶内所有真实文件路径（文件夹只下钻、不参与删除）；分页防 limit 截断，去重防重复 push */
+async function sbListAllFiles(prefix, out){
+  const PAGE = 500;
+  let offset = 0;
+  for (;;) {
+    const objs = await sbCall('POST', '/storage/v1/object/list/photos',
+      { prefix: prefix || '', limit: PAGE, offset: offset, sortBy: { column: 'name', order: 'asc' } }) || [];
+    let got = 0;
+    for (const o of objs) {
+      if (!o || !o.name) continue;
+      const isFolder = !!(o.metadata && o.metadata.is_folder);
+      const full = prefix ? prefix + '/' + o.name : o.name;
+      if (isFolder) {
+        await sbListAllFiles(full, out);
+      } else if (out.indexOf(full) < 0) {
+        out.push(full);
+      }
+      got++;
+    }
+    offset += got;
+    if (got < PAGE) break;
+    if (offset > 20000) break;
+  }
+}
+
 async function sbUploadPhoto(partId, kind, rec){
   let blob = rec && rec.blob;
   if (!blob && rec && rec.dataUrl) blob = dataUrlToBlob(rec.dataUrl);
@@ -857,12 +882,8 @@ async function sbImportAll(body){
   await sbCall('DELETE', SB_REST + 'parts?id=gt.0');
   await sbCall('DELETE', SB_REST + 'containers?id=gt.0');
   try {
-    const objs = await sbCall('POST', '/storage/v1/object/list/photos', { prefix: '', limit: 1000, offset: 0 });
     const all = [];
-    for (const o of (objs || [])) {
-      if (o && o.name) all.push(o.name);
-      if (o && o.metadata && o.metadata.is_folder === false && o.name) all.push(o.name);
-    }
+    await sbListAllFiles('', all);
     if (all.length) await sbDeleteObjects(all);
   } catch (e) {}
 
@@ -888,7 +909,11 @@ async function sbImportAll(body){
   }
 
   /* 4) 把自增序列对齐到导入后的最大 id，否则以后新增会撞号（409） */
-  try { await sbCall('POST', '/rest/v1/rpc/hs_fix_sequences', {}); } catch (e) {}
+  try {
+    await sbCall('POST', '/rest/v1/rpc/hs_fix_sequences', {});
+  } catch (e) {
+    toast('序列修复未执行，后续新增可能撞号（409）：' + (e && e.message ? e.message : e), 'err');
+  }
 
   return { containers: containers.length, parts: parts.length, photos: ok, failed: fail };
 }
@@ -1920,8 +1945,14 @@ async function boot(){
       setView('home');
       return;
     } catch (e) {
-      TOKEN = '';
-      try { localStorage.removeItem(TOKEN_KEY); } catch (e2) {}
+      /* 网络失败（sbFetchRaw 统一包装成「连不上云端」）不是令牌失效：保留登录态，仅提示重试 */
+      const m = String((e && e.message) || '');
+      if (m.indexOf('连不上云端') >= 0) {
+        showAuth('网络连接失败，请检查网络后刷新重试');
+        return;
+      }
+      /* 真正的令牌失效（未登录 / 登录已过期）：清干净三个键，避免 hs_refresh 残留 */
+      clearSession();
     }
   }
   showAuth('');
