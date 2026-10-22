@@ -770,7 +770,9 @@ async function sbPutObject(path, blob, mime){
       method: 'POST',
       headers: {
         'Content-Type': mime || 'image/jpeg',
-        'x-upsert': 'true'
+        'x-upsert': 'true',
+        /* 让 CDN 只缓存 5 分钟：删掉照片后旧链接最多再多活 5 分钟（默认是一年） */
+        'cache-control': 'max-age=300'
       },
       body: blob
     });
