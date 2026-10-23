@@ -866,10 +866,14 @@ async function sbPutObject(path, blob, mime){
     return sbFetchRaw('/storage/v1/object/photos/' + path, {
       method: 'POST',
       headers: {
-        'Content-Type': mime || 'image/jpeg',
-        'x-upsert': 'true',
-        /* 让 CDN 只缓存 5 分钟：删掉照片后旧链接最多再多活 5 分钟（默认是一年） */
-        'cache-control': 'max-age=300'
+        'Content-Type': mime || 'image/jpeg'
+        /* 注意：这里只能出现预检白名单里的头。
+           线上中转的 Access-Control-Allow-Headers 是
+           authorization, apikey, x-client-info, content-type,
+           x-supabase-api-version, prefer, range, accept
+           —— 一旦多带 x-upsert / cache-control 这类头，浏览器预检会被拒，
+           前端只会看到「连不上云端」，照片永远存不进去（Node 测试查不出来，因为不走 CORS）。
+           等中转换成加固版（白名单里加了这些头）再考虑加回来。 */
       },
       body: blob
     });
