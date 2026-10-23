@@ -1882,6 +1882,30 @@ function toggleUnshot(){
 
 /* =========================== 启动 =========================== */
 let uiBound = false;
+/* 登录控件的绑定单独抽出来：首屏（没有令牌）也要能点，不能只在 bindUI 里绑 */
+function bindAuthUI(){
+  const ab = $('authBtn');
+  if (ab && !ab.__bound) {
+    ab.__bound = true;
+    ab.addEventListener('click', function () { doAuth(); });
+  }
+  const asw = $('authSwitch');
+  if (asw && !asw.__bound) {
+    asw.__bound = true;
+    asw.addEventListener('click', function () { setAuthMode(authMode === 'login' ? 'register' : 'login'); });
+  }
+  const ap = $('authPass');
+  if (ap && !ap.__bound) {
+    ap.__bound = true;
+    ap.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
+  }
+  const ac = $('authCode');
+  if (ac && !ac.__bound) {
+    ac.__bound = true;
+    ac.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
+  }
+}
+
 function bindUI(force){
   if (uiBound && !force) return;
   uiBound = true;
@@ -1972,17 +1996,7 @@ function bindUI(force){
   const bus = $('btnUnshot');
   if (bus) bus.addEventListener('click', toggleUnshot);
 
-  /* 登录界面 */
-  const ab = $('authBtn');
-  if (ab) ab.addEventListener('click', doAuth);
-  const asw = $('authSwitch');
-  if (asw) asw.addEventListener('click', function () {
-    setAuthMode(authMode === 'login' ? 'register' : 'login');
-  });
-  const ap = $('authPass');
-  if (ap) ap.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
-  const ac = $('authCode');
-  if (ac) ac.addEventListener('keydown', function (e) { if (e.key === 'Enter') doAuth(); });
+  bindAuthUI();
 }
 
 async function boot(){
@@ -2057,6 +2071,7 @@ function showAuth(msg){
   const el = $('authScreen');
   if (!el) return;
   el.classList.add('on');
+  try { bindAuthUI(); } catch (e) {}
   // 注意顺序：setAuthMode 会清空提示，所以提示必须放在它后面设置
   setAuthMode(authMode);
   if (!serverConfig.loaded) loadServerConfig(); else applyAuthPolicy();
