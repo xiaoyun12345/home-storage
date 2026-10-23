@@ -1,0 +1,27 @@
+name: keepalive-supabase
+
+# 目的：Supabase 免费版「7 天没有任何访问」会休眠，站点变 502。
+# 这个任务每天通过 Deno 中转打一次 Auth 健康检查，让项目保持活跃。
+
+on:
+  schedule:
+    - cron: '17 3 * * *'      # 每天 UTC 03:17（北京时间 11:17）
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping supabase
+        env:
+          ANON_KEY: sb_publishable_ShPVIqV4EGrj4mJ2ZyiQkg_ome-YHEE
+          PROXY: https://home-storage-proxy.home-storage.deno.net
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /tmp/body.txt -w '%{http_code}' -H "apikey: $ANON_KEY" "$PROXY/auth/v1/health" || true)
+          echo "HTTP $code"
+          head -c 200 /tmp/body.txt || true
+          echo
+          test "$code" = "200"
