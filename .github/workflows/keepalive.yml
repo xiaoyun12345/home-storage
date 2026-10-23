@@ -4,6 +4,7 @@ name: keepalive-supabase
 # 这个任务每天通过 Deno 中转打一次 Auth 健康检查，让项目保持活跃。
 
 on:
+  push:                       # 推代码时顺带跑一次（用来验证，也避免定时任务被 GitHub 判为不活跃）
   schedule:
     - cron: '17 3 * * *'      # 每天 UTC 03:17（北京时间 11:17）
   workflow_dispatch:
