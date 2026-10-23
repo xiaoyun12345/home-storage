@@ -287,6 +287,103 @@
     background:transparent; color:var(--pri); font-size:13px; margin-top:10px; padding:6px;
   }
   #authMsg{font-size:13px; color:var(--danger, #e05252); min-height:18px; margin-top:8px}
+
+  /* ================= 动效层（参考 UI-Demo 的 6 个交互） ================= */
+  :root{ --ease:cubic-bezier(.22,1,.36,1); }
+
+  /* 1) 按下反馈：像真的按到东西 */
+  .fcard,.prow,.pcell,.btn-sm,.fab,header .tools button,header button.back{
+    transition:transform .18s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease);
+  }
+  .fcard:active{transform:scale(.965)}
+  .pcell:active{transform:scale(.96)}
+  .prow:active{transform:scale(.992)}
+  .btn-sm:active{transform:scale(.95)}
+  .fab:active{transform:scale(.9)}
+  header .tools button:active,header button.back:active{transform:scale(.9)}
+
+  /* 2) 逐张浮起（stagger） */
+  @keyframes hsRise{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes hsPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+  body.hs-vin .grid .fcard{animation:hsRise .42s cubic-bezier(.22,1,.36,1) both}
+  body.hs-vin .list .prow{animation:hsRise .38s cubic-bezier(.22,1,.36,1) both}
+  body.hs-vin .wall .pcell{animation:hsPop .34s cubic-bezier(.22,1,.36,1) both}
+  .grid .fcard:nth-child(1){animation-delay:0ms}
+  .grid .fcard:nth-child(2){animation-delay:32ms}
+  .grid .fcard:nth-child(3){animation-delay:64ms}
+  .grid .fcard:nth-child(4){animation-delay:96ms}
+  .grid .fcard:nth-child(5){animation-delay:128ms}
+  .grid .fcard:nth-child(6){animation-delay:160ms}
+  .grid .fcard:nth-child(7){animation-delay:192ms}
+  .grid .fcard:nth-child(8){animation-delay:224ms}
+  .grid .fcard:nth-child(9){animation-delay:256ms}
+  .grid .fcard:nth-child(10){animation-delay:288ms}
+  .grid .fcard:nth-child(11){animation-delay:320ms}
+  .grid .fcard:nth-child(12){animation-delay:352ms}
+  .grid .fcard:nth-child(13){animation-delay:384ms}
+  .grid .fcard:nth-child(14){animation-delay:416ms}
+  .grid .fcard:nth-child(15){animation-delay:448ms}
+  .grid .fcard:nth-child(16){animation-delay:480ms}
+  .grid .fcard:nth-child(17){animation-delay:512ms}
+  .list .prow:nth-child(1){animation-delay:0ms}
+  .list .prow:nth-child(2){animation-delay:28ms}
+  .list .prow:nth-child(3){animation-delay:56ms}
+  .list .prow:nth-child(4){animation-delay:84ms}
+  .list .prow:nth-child(5){animation-delay:112ms}
+  .list .prow:nth-child(6){animation-delay:140ms}
+  .list .prow:nth-child(7){animation-delay:168ms}
+  .list .prow:nth-child(8){animation-delay:196ms}
+  .wall .pcell:nth-child(1){animation-delay:0ms}
+  .wall .pcell:nth-child(2){animation-delay:24ms}
+  .wall .pcell:nth-child(3){animation-delay:48ms}
+  .wall .pcell:nth-child(4){animation-delay:72ms}
+  .wall .pcell:nth-child(5){animation-delay:96ms}
+  .wall .pcell:nth-child(6){animation-delay:120ms}
+  .wall .pcell:nth-child(7){animation-delay:144ms}
+  .wall .pcell:nth-child(8){animation-delay:168ms}
+  .wall .pcell:nth-child(9){animation-delay:192ms}
+  .wall .pcell:nth-child(10){animation-delay:216ms}
+  .wall .pcell:nth-child(11){animation-delay:240ms}
+  .wall .pcell:nth-child(12){animation-delay:264ms}
+
+  /* 3) 视图切换：淡入上浮 */
+  @keyframes hsView{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .view.on{animation:hsView .3s cubic-bezier(.22,1,.36,1)}
+
+  /* 4) 弹层：背景淡入 + 面板从底部弹起（先落位、后反馈） */
+  @keyframes hsFade{from{opacity:0}to{opacity:1}}
+  @keyframes hsSheet{from{opacity:.5;transform:translateY(30px) scale(.985)}to{opacity:1;transform:none}}
+  .sheet-bg.on{animation:hsFade .2s ease}
+  .sheet-bg.on .sheet{animation:hsSheet .42s cubic-bezier(.22,1,.36,1)}
+
+  /* 5) 提示条更弹 */
+  @keyframes hsToast{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}
+  .toast-item{animation:hsToast .34s cubic-bezier(.22,1,.36,1)}
+
+  /* 6) 点按涟漪 */
+  .ripple-host{position:relative; overflow:hidden}
+  .ripple-dot{
+    position:absolute; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%;
+    background:rgba(91,124,250,.35); pointer-events:none;
+    animation:hsRipple .55s cubic-bezier(.22,1,.36,1) forwards;
+  }
+  @keyframes hsRipple{from{transform:scale(0); opacity:.55} to{transform:scale(26); opacity:0}}
+
+  /* 7) 首页「已拍进度条」（照搬勾选联动的进度手感） */
+  .hs-prog{height:4px; border-radius:4px; background:#e8ecf6; overflow:hidden; margin:-4px 2px 12px}
+  .hs-prog i{display:block; height:100%; width:0; border-radius:4px;
+    background:linear-gradient(90deg,var(--pri),var(--ok));
+    transition:width .6s cubic-bezier(.22,1,.36,1)}
+
+  /* 整体照出现时也弹一下 */
+  .overview img{animation:hsPop .35s cubic-bezier(.22,1,.36,1)}
+  .fab.on{animation:hsPop .3s cubic-bezier(.22,1,.36,1)}
+
+  /* 8) 尊重系统「减弱动态效果」 */
+  @media (prefers-reduced-motion: reduce){
+    .grid .fcard,.list .prow,.wall .pcell,.view.on,.sheet-bg.on,.sheet-bg.on .sheet,
+    .toast-item,.ripple-dot,.overview img,.fab.on{animation:none !important}
+  }
 </style>
 </head>
 <body>
@@ -2124,6 +2221,74 @@ async function doAuth(){
 }
 
 document.addEventListener('DOMContentLoaded', boot);
+</script>
+
+<script>
+/* ================= 动效增强（只追加，不改原有函数） ================= */
+(function(){
+  /* ---- 点按涟漪 ---- */
+  var HOSTS = '.fcard,.prow,.pcell,.fab,header .tools button,header button.back,.btn-sm';
+  document.addEventListener('pointerdown', function(e){
+    try {
+      if (!e || !e.target || !e.target.closest) return;
+      var el = e.target.closest(HOSTS);
+      if (!el || !el.getBoundingClientRect) return;
+      el.classList.add('ripple-host');
+      var r = el.getBoundingClientRect();
+      var d = document.createElement('span');
+      d.className = 'ripple-dot';
+      d.style.left = (e.clientX - r.left) + 'px';
+      d.style.top = (e.clientY - r.top) + 'px';
+      el.appendChild(d);
+      setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 600);
+    } catch (err) {}
+  }, { passive: true });
+
+  /* ---- 首页：分区拍摄进度条 ---- */
+  function ensureProg(){
+    var bar = document.getElementById('hsProg');
+    if (bar) return bar;
+    var stats = document.getElementById('homeStats');
+    if (!stats || !stats.parentNode) return null;
+    bar = document.createElement('div');
+    bar.id = 'hsProg';
+    bar.className = 'hs-prog';
+    bar.innerHTML = '<i></i>';
+    stats.parentNode.insertBefore(bar, stats.nextSibling);
+    return bar;
+  }
+  function paintProg(){
+    var bar = ensureProg();
+    if (!bar || !bar.firstChild) return;
+    var total = 0, shot = 0;
+    (S.parts || []).forEach(function(p){
+      total++;
+      try { if (photosOf(p.id).length) shot++; } catch (e) {}
+    });
+    var pct = total ? Math.round(shot / total * 100) : 0;
+    bar.firstChild.style.width = pct + '%';
+    bar.title = '已拍 ' + shot + ' / ' + total + ' 个分区';
+  }
+  if (typeof renderHome === 'function') {
+    var _renderHome = renderHome;
+    renderHome = function(){
+      var r = _renderHome.apply(this, arguments);
+      try { paintProg(); } catch (e) {}
+      return r;
+    };
+  }
+
+  /* ---- 只在「切换视图」时播放入场动画：自动同步每分钟重画首页不该一直闪 ---- */
+  if (typeof setView === 'function') {
+    var _setView = setView;
+    setView = function(){
+      try { document.body.classList.add('hs-vin'); } catch (e) {}
+      var r = _setView.apply(this, arguments);
+      setTimeout(function(){ try { document.body.classList.remove('hs-vin'); } catch (e) {} }, 760);
+      return r;
+    };
+  }
+})();
 </script>
 </body>
 </html>
