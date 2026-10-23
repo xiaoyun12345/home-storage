@@ -2294,5 +2294,110 @@ document.addEventListener('DOMContentLoaded', boot);
   }
 })();
 </script>
+
+<script>
+/* ================= 拍照自动识别物品名（走中转 /vision/name） ================= */
+(function(){
+  var busy = false;
+
+  /* 把 blob 缩到最长边 max 并转成 dataURL；没有 canvas 时退回原图 dataURL */
+  function toSmallDataUrl(blob, max, quality){
+    return new Promise(function(resolve, reject){
+      var fallback = function(){
+        try {
+          var fr = new FileReader();
+          fr.onload = function(){ resolve(fr.result); };
+          fr.onerror = function(){ reject(new Error('读取图片失败')); };
+          fr.readAsDataURL(blob);
+        } catch (e) { reject(e); }
+      };
+      try {
+        if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return fallback();
+        createImageBitmap(blob).then(function(bmp){
+          try {
+            var scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+            var w = Math.max(1, Math.round(bmp.width * scale));
+            var h = Math.max(1, Math.round(bmp.height * scale));
+            var cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            var ctx = cv.getContext('2d');
+            if (!ctx || !cv.toDataURL) return fallback();
+            ctx.drawImage(bmp, 0, 0, w, h);
+            if (bmp.close) setTimeout(function(){ bmp.close(); }, 0);
+            resolve(cv.toDataURL('image/jpeg', quality || 0.72));
+          } catch (e) { fallback(); }
+        }).catch(fallback);
+      } catch (e) { fallback(); }
+    });
+  }
+
+  /* 等 S.pending 里出现压缩后的图（handleFile 是异步的） */
+  function waitPending(timeoutMs){
+    var t0 = Date.now();
+    return new Promise(function(resolve){
+      (function tick(){
+        if (S.pending && S.pending.blob) return resolve(S.pending.blob);
+        if (Date.now() - t0 > timeoutMs) return resolve(null);
+        setTimeout(tick, 120);
+      })();
+    });
+  }
+
+  async function autoName(blob){
+    if (busy || !blob) return null;
+    var input = document.getElementById('photoName');
+    if (!input) return null;
+    if (input.value && input.value.trim()) return null;    /* 用户已经打了字，不覆盖 */
+    busy = true;
+    var hint = '识别中…';
+    try { input.placeholder = hint; } catch (e) {}
+    try {
+      var dataUrl = await toSmallDataUrl(blob, 640, 0.72);
+      var res = await fetch(SB_URL + '/vision/name', {
+        method: 'POST',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': 'Bearer ' + TOKEN,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ image: dataUrl })
+      });
+      var j = null;
+      try { j = await res.json(); } catch (e) {}
+      if (res.ok && j && j.name) {
+        if (!input.value || !input.value.trim()) {
+          input.value = j.name;
+          try { toast('已识别：' + j.name + '（可修改）', 'ok'); } catch (e) {}
+        }
+        return j.name;
+      }
+      if (j && j.error) { try { toast('自动识别没成功：' + j.error, 'warn'); } catch (e) {} }
+      return null;
+    } catch (e) {
+      return null;   /* 静默失败：不影响手动输入 */
+    } finally {
+      busy = false;
+      try { input.placeholder = '给它起个名字（可不填）'; } catch (e) {}
+    }
+  }
+
+  /* 暴露给测试用 */
+  window.hsAutoName = function(blob){ return autoName(blob); };
+
+  /* 拍照/选图完成后自动识别 */
+  if (typeof handleFile === 'function') {
+    var _handleFile = handleFile;
+    handleFile = function(file){
+      var p = _handleFile.apply(this, arguments);
+      try {
+        if (typeof sheetKind !== 'undefined' && sheetKind === 'item') {
+          waitPending(9000).then(function(blob){ if (blob) autoName(blob); });
+        }
+      } catch (e) {}
+      return p;
+    };
+  }
+})();
+</script>
 </body>
 </html>
